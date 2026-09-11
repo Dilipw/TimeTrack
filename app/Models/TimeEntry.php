@@ -10,6 +10,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
 
 #[Fillable([
     'employee_id',
@@ -59,5 +61,11 @@ class TimeEntry extends Model
             'approved_at' => 'datetime',
             'rejected_at' => 'datetime',
         ];
+    }
+
+    public function approvals(): HasMany
+    {
+        return $this->hasMany(TimesheetApproval::class)
+            ->orderBy('acted_at');
     }
 }
