@@ -88,4 +88,29 @@ class Employee extends Model
             ])
             ->withTimestamps();
     }
+
+    public function assignedTasks(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Task::class,
+            'task_assignees'
+        )->withPivot([
+            'assigned_at',
+            'removed_at',
+        ])->withTimestamps();
+    }
+
+    public function activeAssignedTasks(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Task::class,
+            'task_assignees'
+        )
+            ->wherePivotNull('removed_at')
+            ->withPivot([
+                'assigned_at',
+                'removed_at',
+            ])
+            ->withTimestamps();
+    }
 }

@@ -67,4 +67,9 @@ class Project extends Model
             'budget' => 'decimal:2',
         ];
     }
+
+    public function tasks(): HasMany
+    {
+        return $this->hasMany(Task::class);
+    }
 }
