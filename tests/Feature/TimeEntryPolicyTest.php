@@ -13,11 +13,16 @@ use App\Models\TimeEntry;
 use App\Models\User;
 use App\Policies\TimeEntryPolicy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Permission\Models\Role;
 
 uses(RefreshDatabase::class);
 
 function createPolicyContext(): array
 {
+
+    Role::findOrCreate('project_manager', 'web');
+    Role::findOrCreate('employee', 'web');
+
     $employeeUser = User::factory()->create();
 
     $managerUser = User::factory()->create();
@@ -51,7 +56,9 @@ function createPolicyContext(): array
         'joining_date' => '2026-09-01',
         'status' => EmployeeStatus::ACTIVE,
     ]);
-
+    $employeeUser->assignRole('employee');
+    $managerUser->assignRole('project_manager');
+    $otherManagerUser->assignRole('project_manager');
     $project = Project::factory()->create([
         'project_manager_id' => $manager->id,
         'start_date' => '2026-09-01',

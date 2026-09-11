@@ -105,7 +105,11 @@ class TimeEntryPolicy
 
         $employee = $user->employee;
 
-        if (! $employee || $employee->status !== EmployeeStatus::ACTIVE) {
+        if (
+            ! $employee
+            || $employee->status !== EmployeeStatus::ACTIVE
+            || ! $user->hasRole('project_manager')
+        ) {
             return false;
         }
 
@@ -122,7 +126,11 @@ class TimeEntryPolicy
 
         $employee = $user->employee;
 
-        if (! $employee || $employee->status !== EmployeeStatus::ACTIVE) {
+        if (
+            ! $employee
+            || $employee->status !== EmployeeStatus::ACTIVE
+            || ! $user->hasRole('project_manager')
+        ) {
             return false;
         }
 
