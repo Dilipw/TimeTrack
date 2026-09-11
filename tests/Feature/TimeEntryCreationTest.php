@@ -136,7 +136,7 @@ test('it rejects overlapping time entries', function () {
         ]
     );
 
-    expect(fn () => $service->create(
+    expect(fn() => $service->create(
         $context['employee'],
         $context['project'],
         $context['task'],
@@ -193,7 +193,7 @@ test('it rejects time entry for an inactive employee', function () {
 
     $service = app(TimeEntryService::class);
 
-    expect(fn () => $service->create(
+    expect(fn() => $service->create(
         $context['employee']->fresh(),
         $context['project'],
         $context['task'],
@@ -213,7 +213,7 @@ test('it rejects time entry when employee is not an active project member', func
 
     $service = app(TimeEntryService::class);
 
-    expect(fn () => $service->create(
+    expect(fn() => $service->create(
         $context['employee'],
         $context['project']->fresh(),
         $context['task'],
@@ -233,7 +233,7 @@ test('it rejects time entry when employee is not an active task assignee', funct
 
     $service = app(TimeEntryService::class);
 
-    expect(fn () => $service->create(
+    expect(fn() => $service->create(
         $context['employee'],
         $context['project'],
         $context['task']->fresh(),
@@ -244,14 +244,28 @@ test('it rejects time entry when employee is not an active task assignee', funct
 test('it rejects a task belonging to another project', function () {
     $context = createTimeEntryContext();
 
+    $otherProject = Project::factory()->create([
+        'project_manager_id' => $context['employee']->id,
+        'start_date' => '2026-09-01',
+        'status' => ProjectStatus::ACTIVE,
+    ]);
+
+    $otherProject->members()->attach(
+        $context['employee']->id,
+        ['assigned_at' => now()]
+    );
+
     $otherTask = Task::factory()->create([
-        'project_id' => $context['project']->id + 999,
+        'project_id' => $otherProject->id,
         'status' => TaskStatus::IN_PROGRESS,
     ]);
 
-    $service = app(TimeEntryService::class);
+    $otherTask->assignees()->attach(
+        $context['employee']->id,
+        ['assigned_at' => now()]
+    );
 
-    expect(fn () => $service->create(
+    expect(fn() => app(TimeEntryService::class)->create(
         $context['employee'],
         $context['project'],
         $otherTask,
@@ -268,7 +282,7 @@ test('it rejects completed tasks', function () {
 
     $service = app(TimeEntryService::class);
 
-    expect(fn () => $service->create(
+    expect(fn() => $service->create(
         $context['employee'],
         $context['project'],
         $context['task']->fresh(),
@@ -285,7 +299,7 @@ test('it rejects cancelled tasks', function () {
 
     $service = app(TimeEntryService::class);
 
-    expect(fn () => $service->create(
+    expect(fn() => $service->create(
         $context['employee'],
         $context['project'],
         $context['task']->fresh(),
@@ -302,7 +316,7 @@ test('it rejects a non-active project', function () {
 
     $service = app(TimeEntryService::class);
 
-    expect(fn () => $service->create(
+    expect(fn() => $service->create(
         $context['employee'],
         $context['project']->fresh(),
         $context['task'],
@@ -319,7 +333,7 @@ test('it rejects future work dates', function () {
 
     $service = app(TimeEntryService::class);
 
-    expect(fn () => $service->create(
+    expect(fn() => $service->create(
         $context['employee'],
         $context['project'],
         $context['task'],
@@ -335,7 +349,7 @@ test('it rejects work dates before employee joining date', function () {
 
     $service = app(TimeEntryService::class);
 
-    expect(fn () => $service->create(
+    expect(fn() => $service->create(
         $context['employee'],
         $context['project'],
         $context['task'],
@@ -351,7 +365,7 @@ test('it rejects negative break duration', function () {
 
     $service = app(TimeEntryService::class);
 
-    expect(fn () => $service->create(
+    expect(fn() => $service->create(
         $context['employee'],
         $context['project'],
         $context['task'],
@@ -367,7 +381,7 @@ test('it rejects break duration equal to total duration', function () {
 
     $service = app(TimeEntryService::class);
 
-    expect(fn () => $service->create(
+    expect(fn() => $service->create(
         $context['employee'],
         $context['project'],
         $context['task'],
@@ -385,7 +399,7 @@ test('it rejects end time before start time', function () {
 
     $service = app(TimeEntryService::class);
 
-    expect(fn () => $service->create(
+    expect(fn() => $service->create(
         $context['employee'],
         $context['project'],
         $context['task'],
