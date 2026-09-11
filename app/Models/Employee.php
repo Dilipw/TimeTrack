@@ -113,4 +113,9 @@ class Employee extends Model
             ])
             ->withTimestamps();
     }
+
+    public function timeEntries(): HasMany
+    {
+        return $this->hasMany(TimeEntry::class);
+    }
 }

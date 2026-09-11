@@ -82,4 +82,9 @@ class Task extends Model
             'status' => TaskStatus::class,
         ];
     }
+
+    public function timeEntries(): HasMany
+    {
+        return $this->hasMany(TimeEntry::class);
+    }
 }
