@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 #[Fillable([
     'employee_code',
@@ -71,5 +72,20 @@ class Employee extends Model
     public function managedProjects(): HasMany
     {
         return $this->hasMany(Project::class, 'project_manager_id');
+    }
+
+    public function projectMemberships(): HasMany
+    {
+        return $this->hasMany(ProjectMember::class);
+    }
+
+    public function projects(): BelongsToMany
+    {
+        return $this->belongsToMany(Project::class, 'project_members')
+            ->withPivot([
+                'assigned_at',
+                'removed_at',
+            ])
+            ->withTimestamps();
     }
 }
