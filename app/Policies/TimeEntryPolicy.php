@@ -1,154 +1,75 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Policies;
 
-use App\Enums\EmployeeStatus;
-use App\Enums\ProjectStatus;
-use App\Enums\TimeEntryStatus;
-use App\Models\Employee;
+use Illuminate\Foundation\Auth\User as AuthUser;
 use App\Models\TimeEntry;
-use App\Models\User;
+use Illuminate\Auth\Access\HandlesAuthorization;
 
 class TimeEntryPolicy
 {
-    public function view(User $user, TimeEntry $timeEntry): bool
+    use HandlesAuthorization;
+    
+    public function viewAny(AuthUser $authUser): bool
     {
-        if ($this->isAdmin($user)) {
-            return true;
-        }
-
-        $employee = $user->employee;
-
-        if (! $employee) {
-            return false;
-        }
-
-        return $timeEntry->employee_id === $employee->id
-            || $this->managesProject($employee, $timeEntry);
+        return $authUser->can('ViewAny:TimeEntry');
     }
 
-    public function create(User $user): bool
+    public function view(AuthUser $authUser, TimeEntry $timeEntry): bool
     {
-        $employee = $user->employee;
-
-        return $employee?->status === EmployeeStatus::ACTIVE;
+        return $authUser->can('View:TimeEntry');
     }
 
-    public function update(User $user, TimeEntry $timeEntry): bool
+    public function create(AuthUser $authUser): bool
     {
-        if ($this->isAdmin($user)) {
-            return in_array(
-                $timeEntry->status,
-                [
-                    TimeEntryStatus::DRAFT,
-                    TimeEntryStatus::REJECTED,
-                ],
-                true
-            );
-        }
-
-        $employee = $user->employee;
-
-        if (! $employee || $employee->status !== EmployeeStatus::ACTIVE) {
-            return false;
-        }
-
-        return $timeEntry->employee_id === $employee->id
-            && in_array(
-                $timeEntry->status,
-                [
-                    TimeEntryStatus::DRAFT,
-                    TimeEntryStatus::REJECTED,
-                ],
-                true
-            );
+        return $authUser->can('Create:TimeEntry');
     }
 
-    public function delete(User $user, TimeEntry $timeEntry): bool
+    public function update(AuthUser $authUser, TimeEntry $timeEntry): bool
     {
-        if ($this->isAdmin($user)) {
-            return $timeEntry->status === TimeEntryStatus::DRAFT;
-        }
-
-        $employee = $user->employee;
-
-        return $employee
-            && $employee->status === EmployeeStatus::ACTIVE
-            && $timeEntry->employee_id === $employee->id
-            && $timeEntry->status === TimeEntryStatus::DRAFT;
+        return $authUser->can('Update:TimeEntry');
     }
 
-    public function submit(User $user, TimeEntry $timeEntry): bool
+    public function delete(AuthUser $authUser, TimeEntry $timeEntry): bool
     {
-        $employee = $user->employee;
-
-        if (! $employee || $employee->status !== EmployeeStatus::ACTIVE) {
-            return false;
-        }
-
-        return $timeEntry->employee_id === $employee->id
-            && in_array(
-                $timeEntry->status,
-                [
-                    TimeEntryStatus::DRAFT,
-                    TimeEntryStatus::REJECTED,
-                ],
-                true
-            );
+        return $authUser->can('Delete:TimeEntry');
     }
 
-    public function approve(User $user, TimeEntry $timeEntry): bool
+    public function deleteAny(AuthUser $authUser): bool
     {
-        if ($this->isAdmin($user)) {
-            return $timeEntry->status === TimeEntryStatus::SUBMITTED;
-        }
-
-        $employee = $user->employee;
-
-        if (
-            ! $employee
-            || $employee->status !== EmployeeStatus::ACTIVE
-            || ! $user->hasRole('project_manager')
-        ) {
-            return false;
-        }
-
-        return $timeEntry->status === TimeEntryStatus::SUBMITTED
-            && $timeEntry->employee_id !== $employee->id
-            && $this->managesProject($employee, $timeEntry);
+        return $authUser->can('DeleteAny:TimeEntry');
     }
 
-    public function reject(User $user, TimeEntry $timeEntry): bool
+    public function restore(AuthUser $authUser, TimeEntry $timeEntry): bool
     {
-        if ($this->isAdmin($user)) {
-            return $timeEntry->status === TimeEntryStatus::SUBMITTED;
-        }
-
-        $employee = $user->employee;
-
-        if (
-            ! $employee
-            || $employee->status !== EmployeeStatus::ACTIVE
-            || ! $user->hasRole('project_manager')
-        ) {
-            return false;
-        }
-
-        return $timeEntry->status === TimeEntryStatus::SUBMITTED
-            && $timeEntry->employee_id !== $employee->id
-            && $this->managesProject($employee, $timeEntry);
+        return $authUser->can('Restore:TimeEntry');
     }
 
-    private function isAdmin(User $user): bool
+    public function forceDelete(AuthUser $authUser, TimeEntry $timeEntry): bool
     {
-        return $user->hasRole('admin')
-            || $user->hasRole('super_admin');
+        return $authUser->can('ForceDelete:TimeEntry');
     }
 
-    private function managesProject(
-        Employee $employee,
-        TimeEntry $timeEntry
-    ): bool {
-        return $timeEntry->project?->project_manager_id === $employee->id;
+    public function forceDeleteAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('ForceDeleteAny:TimeEntry');
     }
+
+    public function restoreAny(AuthUser $authUser): bool
+    {
+        return $authUser->can('RestoreAny:TimeEntry');
+    }
+
+    public function replicate(AuthUser $authUser, TimeEntry $timeEntry): bool
+    {
+        return $authUser->can('Replicate:TimeEntry');
+    }
+
+    public function reorder(AuthUser $authUser): bool
+    {
+        return $authUser->can('Reorder:TimeEntry');
+    }
+
 }

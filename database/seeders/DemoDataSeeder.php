@@ -17,6 +17,7 @@ use App\Models\TimeEntry;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use Spatie\Permission\Models\Role;
 
 class DemoDataSeeder extends Seeder
 {
@@ -100,7 +101,20 @@ class DemoDataSeeder extends Seeder
             'email' => 'neha@timetrack.test',
             'password' => Hash::make('password'),
         ]);
+        /*
+ * Roles
+ */
+        $superAdminRole = Role::findOrCreate('super_admin', 'web');
+        $projectManagerRole = Role::findOrCreate('project_manager', 'web');
+        $employeeRole = Role::findOrCreate('employee', 'web');
 
+        $adminUser->assignRole($superAdminRole);
+
+        $pmUser->assignRole($projectManagerRole);
+        $leadUser->assignRole($projectManagerRole);
+
+        $employeeOneUser->assignRole($employeeRole);
+        $employeeTwoUser->assignRole($employeeRole);
         /*
          * Employees
          */

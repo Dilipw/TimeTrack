@@ -53,10 +53,15 @@ class TimeEntry extends Model
     {
         return [
             'work_date' => 'date',
+            'start_time' => 'datetime:H:i',
+            'end_time' => 'datetime:H:i',
+
             'break_minutes' => 'integer',
             'working_minutes' => 'integer',
+
             'entry_type' => TimeEntryType::class,
             'status' => TimeEntryStatus::class,
+
             'submitted_at' => 'datetime',
             'approved_at' => 'datetime',
             'rejected_at' => 'datetime',
