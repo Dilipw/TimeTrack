@@ -67,4 +67,9 @@ class Employee extends Model
             'status' => EmployeeStatus::class,
         ];
     }
+
+    public function managedProjects(): HasMany
+    {
+        return $this->hasMany(Project::class, 'project_manager_id');
+    }
 }
