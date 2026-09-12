@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Filament\Resources\Tasks;
 
 use App\Filament\Resources\Tasks\Pages\CreateTask;
@@ -54,6 +56,45 @@ class TaskResource extends Resource
             'view' => ViewTask::route('/{record}'),
             'edit' => EditTask::route('/{record}/edit'),
         ];
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+
+        $user = auth()->user();
+
+        if (! $user) {
+            return $query->whereKey(0);
+        }
+
+        if ($user->hasAnyRole(['super_admin', 'admin'])) {
+            return $query;
+        }
+
+        $employee = $user->employee;
+
+        if (! $employee) {
+            return $query->whereKey(0);
+        }
+
+        if ($user->hasRole('project_manager')) {
+            return $query->whereHas(
+                'project',
+                fn (Builder $projectQuery): Builder => $projectQuery
+                    ->where('project_manager_id', $employee->id)
+            );
+        }
+
+        if ($user->hasRole('employee')) {
+            return $query->whereHas(
+                'activeAssignees',
+                fn (Builder $assigneeQuery): Builder => $assigneeQuery
+                    ->whereKey($employee->id)
+            );
+        }
+
+        return $query->whereKey(0);
     }
 
     public static function getRecordRouteBindingEloquentQuery(): Builder

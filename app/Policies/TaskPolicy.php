@@ -4,72 +4,122 @@ declare(strict_types=1);
 
 namespace App\Policies;
 
-use Illuminate\Foundation\Auth\User as AuthUser;
 use App\Models\Task;
+use App\Models\User;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
 class TaskPolicy
 {
     use HandlesAuthorization;
-    
-    public function viewAny(AuthUser $authUser): bool
+
+    public function viewAny(User $user): bool
     {
-        return $authUser->can('ViewAny:Task');
+        return $this->isAdmin($user)
+            || $user->hasAnyRole(['project_manager', 'employee']);
     }
 
-    public function view(AuthUser $authUser, Task $task): bool
+    public function view(User $user, Task $task): bool
     {
-        return $authUser->can('View:Task');
+        if ($this->isAdmin($user)) {
+            return true;
+        }
+
+        $employee = $user->employee;
+
+        if (! $employee) {
+            return false;
+        }
+
+        if ($user->hasRole('project_manager')) {
+            return $task->project->project_manager_id === $employee->id;
+        }
+
+        if ($user->hasRole('employee')) {
+            return $task->activeAssignees()
+                ->whereKey($employee->id)
+                ->exists();
+        }
+
+        return false;
     }
 
-    public function create(AuthUser $authUser): bool
+    public function create(User $user): bool
     {
-        return $authUser->can('Create:Task');
+        return $this->isAdmin($user)
+            || $user->hasRole('project_manager');
     }
 
-    public function update(AuthUser $authUser, Task $task): bool
+    public function update(User $user, Task $task): bool
     {
-        return $authUser->can('Update:Task');
+        if ($this->isAdmin($user)) {
+            return true;
+        }
+
+        $employee = $user->employee;
+
+        return $user->hasRole('project_manager')
+            && $employee !== null
+            && $task->project->project_manager_id === $employee->id;
     }
 
-    public function delete(AuthUser $authUser, Task $task): bool
+    public function delete(User $user, Task $task): bool
     {
-        return $authUser->can('Delete:Task');
+        if ($this->isAdmin($user)) {
+            return true;
+        }
+
+        $employee = $user->employee;
+
+        return $user->hasRole('project_manager')
+            && $employee !== null
+            && $task->project->project_manager_id === $employee->id;
     }
 
-    public function deleteAny(AuthUser $authUser): bool
+    public function deleteAny(User $user): bool
     {
-        return $authUser->can('DeleteAny:Task');
+        return $this->isAdmin($user);
     }
 
-    public function restore(AuthUser $authUser, Task $task): bool
+    public function restore(User $user, Task $task): bool
     {
-        return $authUser->can('Restore:Task');
+        return $this->isAdmin($user);
     }
 
-    public function forceDelete(AuthUser $authUser, Task $task): bool
+    public function restoreAny(User $user): bool
     {
-        return $authUser->can('ForceDelete:Task');
+        return $this->isAdmin($user);
     }
 
-    public function forceDeleteAny(AuthUser $authUser): bool
+    public function forceDelete(User $user, Task $task): bool
     {
-        return $authUser->can('ForceDeleteAny:Task');
+        return $this->isAdmin($user);
     }
 
-    public function restoreAny(AuthUser $authUser): bool
+    public function forceDeleteAny(User $user): bool
     {
-        return $authUser->can('RestoreAny:Task');
+        return $this->isAdmin($user);
     }
 
-    public function replicate(AuthUser $authUser, Task $task): bool
+    public function replicate(User $user, Task $task): bool
     {
-        return $authUser->can('Replicate:Task');
+        if ($this->isAdmin($user)) {
+            return true;
+        }
+
+        $employee = $user->employee;
+
+        return $user->hasRole('project_manager')
+            && $employee !== null
+            && $task->project->project_manager_id === $employee->id;
     }
 
-    public function reorder(AuthUser $authUser): bool
+    public function reorder(User $user): bool
     {
-        return $authUser->can('Reorder:Task');
+        return $this->isAdmin($user);
     }
 
+    private function isAdmin(User $user): bool
+    {
+        return $user->hasAnyRole(['super_admin', 'admin']);
+    }
 }

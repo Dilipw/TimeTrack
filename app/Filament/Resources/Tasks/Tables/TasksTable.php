@@ -15,6 +15,7 @@ use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
+use App\Enums\TimeEntryStatus;
 
 class TasksTable
 {
@@ -56,8 +57,8 @@ class TasksTable
 
                         $names = $visibleAssignees
                             ->map(
-                                fn ($employee): string =>
-                                    "{$employee->first_name} {$employee->last_name}"
+                                fn($employee): string =>
+                                "{$employee->first_name} {$employee->last_name}"
                             )
                             ->implode(', ');
 
@@ -85,7 +86,7 @@ class TasksTable
                     ->label('Priority')
                     ->badge()
                     ->formatStateUsing(
-                        fn (TaskPriority $state): string => match ($state) {
+                        fn(TaskPriority $state): string => match ($state) {
                             TaskPriority::LOW => 'Low',
                             TaskPriority::MEDIUM => 'Medium',
                             TaskPriority::HIGH => 'High',
@@ -93,7 +94,7 @@ class TasksTable
                         }
                     )
                     ->color(
-                        fn (TaskPriority $state): string => match ($state) {
+                        fn(TaskPriority $state): string => match ($state) {
                             TaskPriority::LOW => 'gray',
                             TaskPriority::MEDIUM => 'info',
                             TaskPriority::HIGH => 'warning',
@@ -106,7 +107,7 @@ class TasksTable
                     ->label('Status')
                     ->badge()
                     ->formatStateUsing(
-                        fn (TaskStatus $state): string => match ($state) {
+                        fn(TaskStatus $state): string => match ($state) {
                             TaskStatus::TODO => 'To Do',
                             TaskStatus::IN_PROGRESS => 'In Progress',
                             TaskStatus::COMPLETED => 'Completed',
@@ -114,7 +115,7 @@ class TasksTable
                         }
                     )
                     ->color(
-                        fn (TaskStatus $state): string => match ($state) {
+                        fn(TaskStatus $state): string => match ($state) {
                             TaskStatus::TODO => 'gray',
                             TaskStatus::IN_PROGRESS => 'info',
                             TaskStatus::COMPLETED => 'success',
@@ -139,15 +140,19 @@ class TasksTable
                     ->sortable()
                     ->toggleable(),
 
-                TextColumn::make('estimated_minutes')
-                    ->label('Estimated Time')
+                TextColumn::make('approved_actual_minutes')
+                    ->label('Approved Actual')
+                    ->state(fn(Task $record): int => (int) $record->timeEntries()
+                        ->where('status', TimeEntryStatus::APPROVED->value)
+                        ->sum('working_minutes'))
                     ->formatStateUsing(
-                        fn (?int $state): string => $state === null
-                            ? '-'
-                            : "{$state} min"
+                        fn(int $state): string => sprintf(
+                            '%dh %02dm',
+                            intdiv($state, 60),
+                            $state % 60,
+                        )
                     )
-                    ->sortable()
-                    ->toggleable(),
+                    ->sortable(),
 
                 TextColumn::make('created_at')
                     ->label('Created')
