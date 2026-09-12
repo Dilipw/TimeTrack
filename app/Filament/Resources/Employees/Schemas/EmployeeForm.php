@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Filament\Resources\Employees\Schemas;
 
 use App\Enums\EmployeeStatus;
@@ -28,9 +30,20 @@ class EmployeeForm
                     ->relationship(
                         name: 'user',
                         titleAttribute: 'name',
-                        modifyQueryUsing: fn ($query) => $query->whereDoesntHave('employee')
+                        modifyQueryUsing: function ($query, ?Employee $record) {
+                            $query->where(function ($query) use ($record) {
+                                $query
+                                    ->whereDoesntHave('employee', fn($employeeQuery) => $employeeQuery->withTrashed());
+
+                                if ($record?->user_id) {
+                                    $query->orWhereKey($record->user_id);
+                                }
+                            });
+
+                            return $query->orderBy('name');
+                        }
                     )
-                    ->searchable()
+                    ->searchable(['name', 'email'])
                     ->preload()
                     ->required(),
 
@@ -50,14 +63,24 @@ class EmployeeForm
 
                 Select::make('department_id')
                     ->label('Department')
-                    ->relationship('department', 'name')
+                    ->relationship(
+                        'department',
+                        'name',
+                        modifyQueryUsing: fn($query) => $query
+                            ->orderBy('name')
+                    )
                     ->searchable()
                     ->preload()
                     ->required(),
 
                 Select::make('designation_id')
                     ->label('Designation')
-                    ->relationship('designation', 'name')
+                    ->relationship(
+                        'designation',
+                        'name',
+                        modifyQueryUsing: fn($query) => $query
+                            ->orderBy('name')
+                    )
                     ->searchable()
                     ->preload()
                     ->required(),
@@ -67,14 +90,25 @@ class EmployeeForm
                     ->relationship(
                         name: 'manager',
                         titleAttribute: 'employee_code',
-                        modifyQueryUsing: fn ($query, ?Employee $record) => $record
-                            ? $query->whereKeyNot($record->getKey())
-                            : $query
+                        modifyQueryUsing: function ($query, ?Employee $record) {
+                            $query->where('status', EmployeeStatus::ACTIVE);
+
+                            if ($record) {
+                                $query->whereKeyNot($record->getKey());
+                            }
+
+                            return $query->orderBy('employee_code');
+                        }
                     )
                     ->getOptionLabelFromRecordUsing(
-                        fn (Employee $record): string => "{$record->employee_code} - {$record->first_name} {$record->last_name}"
+                        fn(Employee $record): string =>
+                        "{$record->employee_code} - {$record->first_name} {$record->last_name}"
                     )
-                    ->searchable(['employee_code', 'first_name', 'last_name'])
+                    ->searchable([
+                        'employee_code',
+                        'first_name',
+                        'last_name',
+                    ])
                     ->preload()
                     ->nullable()
                     ->placeholder('Select manager'),

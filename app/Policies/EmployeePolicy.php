@@ -4,72 +4,76 @@ declare(strict_types=1);
 
 namespace App\Policies;
 
-use Illuminate\Foundation\Auth\User as AuthUser;
 use App\Models\Employee;
+use App\Models\User;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
 class EmployeePolicy
 {
     use HandlesAuthorization;
-    
-    public function viewAny(AuthUser $authUser): bool
+
+    public function viewAny(User $user): bool
     {
-        return $authUser->can('ViewAny:Employee');
+        return $this->isAdmin($user);
     }
 
-    public function view(AuthUser $authUser, Employee $employee): bool
+    public function view(User $user, Employee $employee): bool
     {
-        return $authUser->can('View:Employee');
+        return $this->isAdmin($user);
     }
 
-    public function create(AuthUser $authUser): bool
+    public function create(User $user): bool
     {
-        return $authUser->can('Create:Employee');
+        return $this->isAdmin($user);
     }
 
-    public function update(AuthUser $authUser, Employee $employee): bool
+    public function update(User $user, Employee $employee): bool
     {
-        return $authUser->can('Update:Employee');
+        return $this->isAdmin($user);
     }
 
-    public function delete(AuthUser $authUser, Employee $employee): bool
+    public function delete(User $user, Employee $employee): bool
     {
-        return $authUser->can('Delete:Employee');
+        return $this->isAdmin($user);
     }
 
-    public function deleteAny(AuthUser $authUser): bool
+    public function deleteAny(User $user): bool
     {
-        return $authUser->can('DeleteAny:Employee');
+        return $this->isAdmin($user);
     }
 
-    public function restore(AuthUser $authUser, Employee $employee): bool
+    public function restore(User $user, Employee $employee): bool
     {
-        return $authUser->can('Restore:Employee');
+        return $this->isAdmin($user);
     }
 
-    public function forceDelete(AuthUser $authUser, Employee $employee): bool
+    public function restoreAny(User $user): bool
     {
-        return $authUser->can('ForceDelete:Employee');
+        return $this->isAdmin($user);
     }
 
-    public function forceDeleteAny(AuthUser $authUser): bool
+    public function forceDelete(User $user, Employee $employee): bool
     {
-        return $authUser->can('ForceDeleteAny:Employee');
+        return $this->isAdmin($user);
     }
 
-    public function restoreAny(AuthUser $authUser): bool
+    public function forceDeleteAny(User $user): bool
     {
-        return $authUser->can('RestoreAny:Employee');
+        return $this->isAdmin($user);
     }
 
-    public function replicate(AuthUser $authUser, Employee $employee): bool
+    public function replicate(User $user, Employee $employee): bool
     {
-        return $authUser->can('Replicate:Employee');
+        return $this->isAdmin($user);
     }
 
-    public function reorder(AuthUser $authUser): bool
+    public function reorder(User $user): bool
     {
-        return $authUser->can('Reorder:Employee');
+        return $this->isAdmin($user);
     }
 
+    private function isAdmin(User $user): bool
+    {
+        return $user->hasAnyRole(['super_admin', 'admin']);
+    }
 }
