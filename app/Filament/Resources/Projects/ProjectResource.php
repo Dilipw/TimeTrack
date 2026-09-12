@@ -17,6 +17,8 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use App\Filament\Resources\Projects\RelationManagers\ProjectMembersRelationManager;
+
 
 class ProjectResource extends Resource
 {
@@ -45,7 +47,9 @@ class ProjectResource extends Resource
 
     public static function getRelations(): array
     {
-        return [];
+        return [
+            ProjectMembersRelationManager::class,
+        ];
     }
 
     public static function getPages(): array
