@@ -9,6 +9,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
 use Filament\Schemas\Schema;
+use App\Enums\EmployeeStatus;
 
 class ProjectForm
 {
@@ -43,9 +44,13 @@ class ProjectForm
                     ->relationship(
                         name: 'projectManager',
                         titleAttribute: 'employee_code',
+                        modifyQueryUsing: fn($query) => $query
+                            ->where('status', EmployeeStatus::ACTIVE)
+                            ->orderBy('employee_code'),
                     )
                     ->getOptionLabelFromRecordUsing(
-                        fn (Employee $record): string => "{$record->employee_code} - {$record->first_name} {$record->last_name}"
+                        fn(Employee $record): string =>
+                        "{$record->employee_code} - {$record->first_name} {$record->last_name}"
                     )
                     ->searchable(['employee_code', 'first_name', 'last_name'])
                     ->preload()
