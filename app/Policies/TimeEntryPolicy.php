@@ -17,10 +17,7 @@ class TimeEntryPolicy
     public function viewAny(User $user): bool
     {
         return $this->isAdmin($user)
-            || $user->hasAnyRole([
-                'project_manager',
-                'employee',
-            ]);
+            || $user->hasAnyRole(['project_manager', 'employee']);
     }
 
     public function view(User $user, TimeEntry $timeEntry): bool
@@ -31,20 +28,14 @@ class TimeEntryPolicy
 
         $employee = $user->employee;
 
-        if (!$employee) {
+        if (! $employee) {
             return false;
         }
 
-        // Employee can view their own time entries.
-        if (
-            $user->hasRole('employee')
-            && $timeEntry->employee_id === $employee->id
-        ) {
-            return true;
+        if ($user->hasRole('employee')) {
+            return $timeEntry->employee_id === $employee->id;
         }
 
-        // Project manager can view entries from projects
-        // they manage.
         if ($user->hasRole('project_manager')) {
             return $timeEntry->project->project_manager_id === $employee->id;
         }
@@ -58,7 +49,7 @@ class TimeEntryPolicy
             return true;
         }
 
-        if (!$user->hasRole('employee')) {
+        if (! $user->hasRole('employee')) {
             return false;
         }
 
@@ -70,7 +61,7 @@ class TimeEntryPolicy
 
     public function update(User $user, TimeEntry $timeEntry): bool
     {
-        if (!in_array(
+        if (! in_array(
             $timeEntry->status,
             [
                 TimeEntryStatus::DRAFT,
@@ -87,7 +78,7 @@ class TimeEntryPolicy
 
         $employee = $user->employee;
 
-        if (!$employee) {
+        if (! $employee) {
             return false;
         }
 
@@ -96,10 +87,8 @@ class TimeEntryPolicy
             && $employee->status === EmployeeStatus::ACTIVE;
     }
 
-    public function delete(
-        User $user,
-        TimeEntry $timeEntry
-    ): bool {
+    public function delete(User $user, TimeEntry $timeEntry): bool
+    {
         return $this->isAdmin($user);
     }
 
@@ -108,21 +97,7 @@ class TimeEntryPolicy
         return $this->isAdmin($user);
     }
 
-    public function restore(
-        User $user,
-        TimeEntry $timeEntry
-    ): bool {
-        return $this->isAdmin($user);
-    }
-
-    public function forceDelete(
-        User $user,
-        TimeEntry $timeEntry
-    ): bool {
-        return $this->isAdmin($user);
-    }
-
-    public function forceDeleteAny(User $user): bool
+    public function restore(User $user, TimeEntry $timeEntry): bool
     {
         return $this->isAdmin($user);
     }
@@ -132,84 +107,19 @@ class TimeEntryPolicy
         return $this->isAdmin($user);
     }
 
-    public function replicate(
-        User $user,
-        TimeEntry $timeEntry
-    ): bool {
-        return $this->isAdmin($user);
-    }
-
-    public function reorder(User $user): bool
+    public function forceDelete(User $user, TimeEntry $timeEntry): bool
     {
         return $this->isAdmin($user);
     }
 
-    public function approve(
-        User $user,
-        TimeEntry $timeEntry
-    ): bool {
-        if ($timeEntry->status !== TimeEntryStatus::SUBMITTED) {
-            return false;
-        }
-
-        if ($this->isAdmin($user)) {
-            return true;
-        }
-
-        if (!$user->hasRole('project_manager')) {
-            return false;
-        }
-
-        $employee = $user->employee;
-
-        if (!$employee) {
-            return false;
-        }
-
-        // A user cannot approve their own time entry.
-        if ($timeEntry->employee_id === $employee->id) {
-            return false;
-        }
-
-        // PM can approve only entries from their own project.
-        return $timeEntry->project->project_manager_id === $employee->id;
+    public function forceDeleteAny(User $user): bool
+    {
+        return $this->isAdmin($user);
     }
 
-    public function reject(
-        User $user,
-        TimeEntry $timeEntry
-    ): bool {
-        if ($timeEntry->status !== TimeEntryStatus::SUBMITTED) {
-            return false;
-        }
-
-        if ($this->isAdmin($user)) {
-            return true;
-        }
-
-        if (!$user->hasRole('project_manager')) {
-            return false;
-        }
-
-        $employee = $user->employee;
-
-        if (!$employee) {
-            return false;
-        }
-
-        // A user cannot reject their own time entry.
-        if ($timeEntry->employee_id === $employee->id) {
-            return false;
-        }
-
-        return $timeEntry->project->project_manager_id === $employee->id;
-    }
-
-    public function submit(
-        User $user,
-        TimeEntry $timeEntry
-    ): bool {
-        if (!in_array(
+    public function submit(User $user, TimeEntry $timeEntry): bool
+    {
+        if (! in_array(
             $timeEntry->status,
             [
                 TimeEntryStatus::DRAFT,
@@ -226,13 +136,64 @@ class TimeEntryPolicy
 
         $employee = $user->employee;
 
-        if (!$employee) {
+        return $user->hasRole('employee')
+            && $employee !== null
+            && $employee->status === EmployeeStatus::ACTIVE
+            && $timeEntry->employee_id === $employee->id;
+    }
+
+    public function approve(User $user, TimeEntry $timeEntry): bool
+    {
+        if ($timeEntry->status !== TimeEntryStatus::SUBMITTED) {
             return false;
         }
 
-        return $user->hasRole('employee')
-            && $timeEntry->employee_id === $employee->id
-            && $employee->status === EmployeeStatus::ACTIVE;
+        if ($this->isAdmin($user)) {
+            return true;
+        }
+
+        if (! $user->hasRole('project_manager')) {
+            return false;
+        }
+
+        $employee = $user->employee;
+
+        if (! $employee) {
+            return false;
+        }
+
+        if ($timeEntry->employee_id === $employee->id) {
+            return false;
+        }
+
+        return $timeEntry->project->project_manager_id === $employee->id;
+    }
+
+    public function reject(User $user, TimeEntry $timeEntry): bool
+    {
+        if ($timeEntry->status !== TimeEntryStatus::SUBMITTED) {
+            return false;
+        }
+
+        if ($this->isAdmin($user)) {
+            return true;
+        }
+
+        if (! $user->hasRole('project_manager')) {
+            return false;
+        }
+
+        $employee = $user->employee;
+
+        if (! $employee) {
+            return false;
+        }
+
+        if ($timeEntry->employee_id === $employee->id) {
+            return false;
+        }
+
+        return $timeEntry->project->project_manager_id === $employee->id;
     }
 
     private function isAdmin(User $user): bool
