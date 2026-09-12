@@ -73,4 +73,9 @@ class TimeEntry extends Model
         return $this->hasMany(TimesheetApproval::class)
             ->orderBy('acted_at');
     }
+
+    public function payrollEntries(): HasMany
+    {
+        return $this->hasMany(PayrollTimeEntry::class);
+    }
 }
