@@ -144,4 +144,28 @@ class TimeEntryPolicy
             'admin',
         ]);
     }
+
+    public function submit(User $user, TimeEntry $timeEntry): bool
+    {
+        if (! in_array(
+            $timeEntry->status->value,
+            ['draft', 'rejected'],
+            true
+        )) {
+            return false;
+        }
+
+        if ($this->isAdmin($user)) {
+            return true;
+        }
+
+        $employee = $user->employee;
+
+        if (! $employee) {
+            return false;
+        }
+
+        return $timeEntry->employee_id === $employee->id
+            && $employee->status->value === 'active';
+    }
 }

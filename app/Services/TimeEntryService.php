@@ -2,6 +2,9 @@
 
 namespace App\Services;
 
+use App\Enums\EmployeeStatus;
+use App\Enums\ProjectStatus;
+use App\Enums\TaskStatus;
 use App\Enums\TimeEntryStatus;
 use App\Models\Employee;
 use App\Models\Project;
@@ -28,33 +31,16 @@ class TimeEntryService
             $task,
             $data
         ): TimeEntry {
-            /*
-             * Lock the employee row.
-             *
-             * This gives us a consistent serialization point for
-             * time-entry writes belonging to the same employee.
-             */
             $employee = $this->lockEmployee($employee);
 
             $project = $this->freshProject($project);
             $task = $this->freshTask($task);
 
             $this->validateEmployee($employee);
+            $this->validateProject($employee, $project);
+            $this->validateTask($employee, $project, $task);
 
-            $this->validateProject(
-                $employee,
-                $project
-            );
-
-            $this->validateTask(
-                $employee,
-                $project,
-                $task
-            );
-
-            $workDate = $this->parseWorkDate(
-                $data['work_date']
-            );
+            $workDate = $this->parseWorkDate($data['work_date']);
 
             $this->validateWorkDate(
                 $employee,
@@ -67,9 +53,7 @@ class TimeEntryService
                 $data['end_time']
             );
 
-            $breakMinutes = (int) (
-                $data['break_minutes'] ?? 0
-            );
+            $breakMinutes = (int) ($data['break_minutes'] ?? 0);
 
             $workingMinutes = $this->calculateWorkingMinutes(
                 $startTime,
@@ -117,11 +101,6 @@ class TimeEntryService
             $data
         ): TimeEntry {
             $employee = $this->lockEmployee($employee);
-
-            /*
-             * Lock the entry itself so two requests cannot update
-             * the same entry simultaneously.
-             */
             $timeEntry = $this->lockTimeEntry($timeEntry);
 
             $project = $this->freshProject($project);
@@ -135,21 +114,10 @@ class TimeEntryService
             $this->ensureEditable($timeEntry);
 
             $this->validateEmployee($employee);
+            $this->validateProject($employee, $project);
+            $this->validateTask($employee, $project, $task);
 
-            $this->validateProject(
-                $employee,
-                $project
-            );
-
-            $this->validateTask(
-                $employee,
-                $project,
-                $task
-            );
-
-            $workDate = $this->parseWorkDate(
-                $data['work_date']
-            );
+            $workDate = $this->parseWorkDate($data['work_date']);
 
             $this->validateWorkDate(
                 $employee,
@@ -162,9 +130,7 @@ class TimeEntryService
                 $data['end_time']
             );
 
-            $breakMinutes = (int) (
-                $data['break_minutes'] ?? 0
-            );
+            $breakMinutes = (int) ($data['break_minutes'] ?? 0);
 
             $workingMinutes = $this->calculateWorkingMinutes(
                 $startTime,
@@ -197,6 +163,9 @@ class TimeEntryService
 
     /**
      * Submit a draft or rejected entry for approval.
+     *
+     * Working minutes are always recalculated server-side before
+     * the entry becomes eligible for approval.
      */
     public function submit(
         TimeEntry $timeEntry,
@@ -207,7 +176,6 @@ class TimeEntryService
             $employee
         ): TimeEntry {
             $employee = $this->lockEmployee($employee);
-
             $timeEntry = $this->lockTimeEntry($timeEntry);
 
             $this->ensureEmployeeOwnsEntry(
@@ -255,19 +223,20 @@ class TimeEntryService
                 $timeEntry->work_date
             );
 
+            /*
+             * TimeEntry casts start_time/end_time to Carbon instances.
+             *
+             * Do not cast them to string here. parseTime() handles both
+             * Carbon instances and string values safely.
+             */
             $startTime = $this->parseTime(
-                (string) $timeEntry->start_time
+                $timeEntry->start_time
             );
 
             $endTime = $this->parseTime(
-                (string) $timeEntry->end_time
+                $timeEntry->end_time
             );
 
-            /*
-             * Recalculate working minutes before submission.
-             * This prevents stale/tampered stored values from
-             * becoming payable hours.
-             */
             $workingMinutes = $this->calculateWorkingMinutes(
                 $startTime,
                 $endTime,
@@ -306,7 +275,6 @@ class TimeEntryService
             $employee
         ): TimeEntry {
             $employee = $this->lockEmployee($employee);
-
             $timeEntry = $this->lockTimeEntry($timeEntry);
 
             $this->ensureEmployeeOwnsEntry(
@@ -373,7 +341,7 @@ class TimeEntryService
      */
     private function validateEmployee(Employee $employee): void
     {
-        if ($employee->status !== \App\Enums\EmployeeStatus::ACTIVE) {
+        if ($employee->status !== EmployeeStatus::ACTIVE) {
             throw ValidationException::withMessages([
                 'employee' => 'Inactive employees cannot create time entries.',
             ]);
@@ -387,13 +355,14 @@ class TimeEntryService
         Employee $employee,
         Project $project
     ): void {
-        if ($project->status !== \App\Enums\ProjectStatus::ACTIVE) {
+        if ($project->status !== ProjectStatus::ACTIVE) {
             throw ValidationException::withMessages([
                 'project' => 'Time can only be logged against an active project.',
             ]);
         }
 
-        $isMember = $project->activeMembers()
+        $isMember = $project
+            ->activeMembers()
             ->whereKey($employee->id)
             ->exists();
 
@@ -422,8 +391,8 @@ class TimeEntryService
         if (in_array(
             $task->status,
             [
-                \App\Enums\TaskStatus::COMPLETED,
-                \App\Enums\TaskStatus::CANCELLED,
+                TaskStatus::COMPLETED,
+                TaskStatus::CANCELLED,
             ],
             true
         )) {
@@ -432,7 +401,8 @@ class TimeEntryService
             ]);
         }
 
-        $isAssignee = $task->activeAssignees()
+        $isAssignee = $task
+            ->activeAssignees()
             ->whereKey($employee->id)
             ->exists();
 
@@ -505,11 +475,13 @@ class TimeEntryService
     /**
      * Parse and validate a time range.
      *
+     * Both form strings and Eloquent Carbon values are supported.
+     *
      * @return array{0: Carbon, 1: Carbon}
      */
     private function parseTimeRange(
-        string $startTime,
-        string $endTime
+        string|Carbon $startTime,
+        string|Carbon $endTime
     ): array {
         try {
             $start = $this->parseTime($startTime);
@@ -531,16 +503,54 @@ class TimeEntryService
     }
 
     /**
-     * Parse either H:i or H:i:s.
+     * Parse a time value into a normalized Carbon instance.
+     *
+     * Supported values:
+     * - Carbon
+     * - H:i
+     * - H:i:s
+     * - h:i A
+     * - h:i a
+     * - g:i A
+     * - g:i a
      */
-    private function parseTime(string $time): Carbon
-    {
-        foreach (['H:i:s', 'H:i'] as $format) {
+    private function parseTime(
+        string|Carbon $time
+    ): Carbon {
+        if ($time instanceof Carbon) {
+            return Carbon::create(
+                2000,
+                1,
+                1,
+                $time->hour,
+                $time->minute,
+                $time->second
+            );
+        }
+
+        $time = trim($time);
+
+        foreach ([
+            'H:i:s',
+            'H:i',
+            'h:i A',
+            'h:i a',
+            'g:i A',
+            'g:i a',
+        ] as $format) {
             try {
-                return Carbon::createFromFormat(
+                $parsed = Carbon::createFromFormat(
                     $format,
                     $time
                 );
+
+                if ($parsed !== false) {
+                    return $parsed->setDate(
+                        2000,
+                        1,
+                        1
+                    );
+                }
             } catch (\Throwable) {
                 continue;
             }
@@ -587,7 +597,8 @@ class TimeEntryService
     /**
      * Prevent overlapping time entries for the same employee/date.
      *
-     * Only active claims participate in overlap detection.
+     * Draft, submitted and approved entries reserve their time period.
+     * Rejected and cancelled entries do not participate in overlap checks.
      */
     private function ensureNoOverlap(
         Employee $employee,
@@ -627,7 +638,7 @@ class TimeEntryService
     }
 
     /**
-     * Ensure the employee can edit the entry.
+     * Ensure the entry is editable.
      */
     private function ensureEditable(
         TimeEntry $timeEntry

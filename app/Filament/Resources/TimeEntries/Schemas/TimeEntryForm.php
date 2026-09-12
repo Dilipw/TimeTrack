@@ -4,8 +4,6 @@ namespace App\Filament\Resources\TimeEntries\Schemas;
 
 use App\Enums\TimeEntryType;
 use App\Models\Employee;
-use App\Models\Project;
-use App\Models\Task;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -117,12 +115,13 @@ class TimeEntryForm
                     ->dehydrated(false)
                     ->placeholder('Calculated automatically')
                     ->suffix('minutes')
-                    ->helperText('Calculated automatically from start time, end time, and break.'),
+                    ->helperText(
+                        'Calculated automatically from start time, end time, and break.'
+                    ),
 
                 Select::make('entry_type')
                     ->label('Entry Type')
                     ->options(TimeEntryType::class)
-                    ->default(TimeEntryType::REGULAR)
                     ->required(),
 
                 Textarea::make('rejection_reason')
@@ -135,7 +134,9 @@ class TimeEntryForm
                             $record?->status?->value === 'rejected'
                     )
                     ->columnSpanFull()
-                    ->helperText('This entry was rejected and can be corrected and resubmitted.'),
+                    ->helperText(
+                        'This entry was rejected and can be corrected and resubmitted.'
+                    ),
             ]);
     }
 }
