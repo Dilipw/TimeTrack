@@ -2,9 +2,11 @@
 
 namespace App\Filament\Resources\TimeEntries\Schemas;
 
+use App\Enums\ApprovalAction;
 use App\Enums\TimeEntryStatus;
 use App\Enums\TimeEntryType;
 use App\Models\TimeEntry;
+use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Schema;
 
@@ -141,6 +143,49 @@ class TimeEntryInfolist
                     ->dateTime('d M Y, h:i A')
                     ->visible(
                         fn (TimeEntry $record): bool => $record->trashed()
+                    ),
+
+                RepeatableEntry::make('approvals')
+                    ->label('Approval History')
+                    ->schema([
+                        TextEntry::make('action')
+                            ->label('Action')
+                            ->badge()
+                            ->formatStateUsing(
+                                fn (ApprovalAction $state): string => match ($state) {
+                                    ApprovalAction::APPROVED => 'Approved',
+                                    ApprovalAction::REJECTED => 'Rejected',
+                                }
+                            )
+                            ->color(
+                                fn (ApprovalAction $state): string => match ($state) {
+                                    ApprovalAction::APPROVED => 'success',
+                                    ApprovalAction::REJECTED => 'danger',
+                                }
+                            ),
+
+                        TextEntry::make('approver.name')
+                            ->label('Action By')
+                            ->placeholder('-'),
+
+                        TextEntry::make('acted_at')
+                            ->label('Date & Time')
+                            ->dateTime('d M Y, h:i A')
+                            ->placeholder('-'),
+
+                        TextEntry::make('rejection_reason')
+                            ->label('Rejection Reason')
+                            ->placeholder('-')
+                            ->visible(
+                                fn ($record): bool =>
+                                    $record?->action === ApprovalAction::REJECTED
+                                    && filled($record?->rejection_reason)
+                            )
+                            ->columnSpanFull(),
+                    ])
+                    ->columnSpanFull()
+                    ->visible(
+                        fn (TimeEntry $record): bool => $record->approvals()->exists()
                     ),
             ]);
     }

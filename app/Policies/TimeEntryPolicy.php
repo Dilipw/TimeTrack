@@ -4,72 +4,144 @@ declare(strict_types=1);
 
 namespace App\Policies;
 
-use Illuminate\Foundation\Auth\User as AuthUser;
 use App\Models\TimeEntry;
+use App\Models\User;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
 class TimeEntryPolicy
 {
     use HandlesAuthorization;
-    
-    public function viewAny(AuthUser $authUser): bool
+
+    public function viewAny(User $user): bool
     {
-        return $authUser->can('ViewAny:TimeEntry');
+        return $user->can('ViewAny:TimeEntry');
     }
 
-    public function view(AuthUser $authUser, TimeEntry $timeEntry): bool
+    public function view(User $user, TimeEntry $timeEntry): bool
     {
-        return $authUser->can('View:TimeEntry');
+        return $user->can('View:TimeEntry');
     }
 
-    public function create(AuthUser $authUser): bool
+    public function create(User $user): bool
     {
-        return $authUser->can('Create:TimeEntry');
+        return $user->can('Create:TimeEntry');
     }
 
-    public function update(AuthUser $authUser, TimeEntry $timeEntry): bool
+    public function update(User $user, TimeEntry $timeEntry): bool
     {
-        return $authUser->can('Update:TimeEntry');
+        return $user->can('Update:TimeEntry')
+            && in_array(
+                $timeEntry->status->value,
+                ['draft', 'rejected'],
+                true
+            );
     }
 
-    public function delete(AuthUser $authUser, TimeEntry $timeEntry): bool
+    public function delete(User $user, TimeEntry $timeEntry): bool
     {
-        return $authUser->can('Delete:TimeEntry');
+        return $user->can('Delete:TimeEntry');
     }
 
-    public function deleteAny(AuthUser $authUser): bool
+    public function deleteAny(User $user): bool
     {
-        return $authUser->can('DeleteAny:TimeEntry');
+        return $user->can('DeleteAny:TimeEntry');
     }
 
-    public function restore(AuthUser $authUser, TimeEntry $timeEntry): bool
+    public function restore(User $user, TimeEntry $timeEntry): bool
     {
-        return $authUser->can('Restore:TimeEntry');
+        return $user->can('Restore:TimeEntry');
     }
 
-    public function forceDelete(AuthUser $authUser, TimeEntry $timeEntry): bool
+    public function forceDelete(User $user, TimeEntry $timeEntry): bool
     {
-        return $authUser->can('ForceDelete:TimeEntry');
+        return $user->can('ForceDelete:TimeEntry');
     }
 
-    public function forceDeleteAny(AuthUser $authUser): bool
+    public function forceDeleteAny(User $user): bool
     {
-        return $authUser->can('ForceDeleteAny:TimeEntry');
+        return $user->can('ForceDeleteAny:TimeEntry');
     }
 
-    public function restoreAny(AuthUser $authUser): bool
+    public function restoreAny(User $user): bool
     {
-        return $authUser->can('RestoreAny:TimeEntry');
+        return $user->can('RestoreAny:TimeEntry');
     }
 
-    public function replicate(AuthUser $authUser, TimeEntry $timeEntry): bool
+    public function replicate(User $user, TimeEntry $timeEntry): bool
     {
-        return $authUser->can('Replicate:TimeEntry');
+        return $user->can('Replicate:TimeEntry');
     }
 
-    public function reorder(AuthUser $authUser): bool
+    public function reorder(User $user): bool
     {
-        return $authUser->can('Reorder:TimeEntry');
+        return $user->can('Reorder:TimeEntry');
     }
 
+    /**
+     * Determine whether the user can approve a submitted time entry.
+     */
+    public function approve(User $user, TimeEntry $timeEntry): bool
+    {
+        if ($timeEntry->status->value !== 'submitted') {
+            return false;
+        }
+
+        if ($this->isAdmin($user)) {
+            return true;
+        }
+
+        if (! $user->hasRole('project_manager')) {
+            return false;
+        }
+
+        $employee = $user->employee;
+
+        if (! $employee) {
+            return false;
+        }
+
+        if ($timeEntry->employee_id === $employee->id) {
+            return false;
+        }
+
+        return $timeEntry->project->project_manager_id === $employee->id;
+    }
+
+    /**
+     * Determine whether the user can reject a submitted time entry.
+     */
+    public function reject(User $user, TimeEntry $timeEntry): bool
+    {
+        if ($timeEntry->status->value !== 'submitted') {
+            return false;
+        }
+
+        if ($this->isAdmin($user)) {
+            return true;
+        }
+
+        if (! $user->hasRole('project_manager')) {
+            return false;
+        }
+
+        $employee = $user->employee;
+
+        if (! $employee) {
+            return false;
+        }
+
+        if ($timeEntry->employee_id === $employee->id) {
+            return false;
+        }
+
+        return $timeEntry->project->project_manager_id === $employee->id;
+    }
+
+    private function isAdmin(User $user): bool
+    {
+        return $user->hasAnyRole([
+            'super_admin',
+            'admin',
+        ]);
+    }
 }
