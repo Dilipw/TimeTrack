@@ -22,10 +22,12 @@ class TimeEntryResource extends Resource
 {
     protected static ?string $model = TimeEntry::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedClock;
 
     protected static ?string $recordTitleAttribute = 'work_date';
+    protected static string|\UnitEnum|null $navigationGroup = 'Project Management';
 
+    protected static ?int $navigationSort = 3;
     public static function form(Schema $schema): Schema
     {
         return TimeEntryForm::configure($schema);

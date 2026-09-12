@@ -25,7 +25,9 @@ class PayrollResource extends Resource
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBanknotes;
 
     protected static ?string $navigationLabel = 'Payroll';
+    protected static string|\UnitEnum|null $navigationGroup = 'Payroll';
 
+    protected static ?int $navigationSort = 1;
     protected static ?string $modelLabel = 'Payroll';
 
     protected static ?string $pluralModelLabel = 'Payroll';
