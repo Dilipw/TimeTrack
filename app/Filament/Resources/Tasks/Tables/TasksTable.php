@@ -140,20 +140,11 @@ class TasksTable
                     ->sortable()
                     ->toggleable(),
 
-                TextColumn::make('approved_actual_minutes')
+                TextColumn::make('approved_actual_hours')
                     ->label('Approved Actual')
-                    ->state(fn(Task $record): int => (int) $record->timeEntries()
-                        ->where('status', TimeEntryStatus::APPROVED->value)
-                        ->sum('working_minutes'))
-                    ->formatStateUsing(
-                        fn(int $state): string => sprintf(
-                            '%dh %02dm',
-                            intdiv($state, 60),
-                            $state % 60,
-                        )
-                    )
-                    ->sortable(),
-
+                    ->suffix(' hrs')
+                    ->numeric(decimalPlaces: 2)
+                    ->sortable(false),
                 TextColumn::make('created_at')
                     ->label('Created')
                     ->dateTime('d M Y, h:i A')

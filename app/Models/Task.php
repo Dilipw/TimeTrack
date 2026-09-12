@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Enums\TimeEntryStatus;
 
 #[Fillable([
     'project_id',
@@ -86,5 +87,17 @@ class Task extends Model
     public function timeEntries(): HasMany
     {
         return $this->hasMany(TimeEntry::class);
+    }
+
+    public function getApprovedActualMinutesAttribute(): int
+    {
+        return (int) $this->timeEntries()
+            ->where('status', TimeEntryStatus::APPROVED)
+            ->sum('working_minutes');
+    }
+
+    public function getApprovedActualHoursAttribute(): float
+    {
+        return round($this->approved_actual_minutes / 60, 2);
     }
 }

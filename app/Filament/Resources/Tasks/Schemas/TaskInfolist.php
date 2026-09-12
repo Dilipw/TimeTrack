@@ -36,7 +36,7 @@ class TaskInfolist
                     ->label('Priority')
                     ->badge()
                     ->formatStateUsing(
-                        fn (TaskPriority $state): string => match ($state) {
+                        fn(TaskPriority $state): string => match ($state) {
                             TaskPriority::LOW => 'Low',
                             TaskPriority::MEDIUM => 'Medium',
                             TaskPriority::HIGH => 'High',
@@ -44,7 +44,7 @@ class TaskInfolist
                         }
                     )
                     ->color(
-                        fn (TaskPriority $state): string => match ($state) {
+                        fn(TaskPriority $state): string => match ($state) {
                             TaskPriority::LOW => 'gray',
                             TaskPriority::MEDIUM => 'info',
                             TaskPriority::HIGH => 'warning',
@@ -56,7 +56,7 @@ class TaskInfolist
                     ->label('Status')
                     ->badge()
                     ->formatStateUsing(
-                        fn (TaskStatus $state): string => match ($state) {
+                        fn(TaskStatus $state): string => match ($state) {
                             TaskStatus::TODO => 'To Do',
                             TaskStatus::IN_PROGRESS => 'In Progress',
                             TaskStatus::COMPLETED => 'Completed',
@@ -64,7 +64,7 @@ class TaskInfolist
                         }
                     )
                     ->color(
-                        fn (TaskStatus $state): string => match ($state) {
+                        fn(TaskStatus $state): string => match ($state) {
                             TaskStatus::TODO => 'gray',
                             TaskStatus::IN_PROGRESS => 'info',
                             TaskStatus::COMPLETED => 'success',
@@ -77,20 +77,17 @@ class TaskInfolist
                     ->date('d M Y')
                     ->placeholder('-'),
 
-                TextEntry::make('estimated_minutes')
-                    ->label('Estimated Time')
-                    ->formatStateUsing(
-                        fn (?int $state): string => $state === null
-                            ? '-'
-                            : "{$state} minutes"
-                    ),
+                TextEntry::make('approved_actual_hours')
+                    ->label('Approved Actual Hours')
+                    ->suffix(' hrs')
+                    ->numeric(decimalPlaces: 2),
 
                 TextEntry::make('assignees')
                     ->label('Assignees')
                     ->state(function (Task $record): string {
                         $assignees = $record->activeAssignees
                             ->map(
-                                fn ($employee): string => "{$employee->employee_code} - {$employee->first_name} {$employee->last_name}"
+                                fn($employee): string => "{$employee->employee_code} - {$employee->first_name} {$employee->last_name}"
                             )
                             ->implode(', ');
 
@@ -111,7 +108,7 @@ class TaskInfolist
                 TextEntry::make('deleted_at')
                     ->label('Deleted')
                     ->dateTime('d M Y, h:i A')
-                    ->visible(fn (Task $record): bool => $record->trashed()),
+                    ->visible(fn(Task $record): bool => $record->trashed()),
             ]);
     }
 }
