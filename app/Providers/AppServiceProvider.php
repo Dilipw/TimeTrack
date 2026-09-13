@@ -8,6 +8,8 @@ use App\Policies\TimeEntryPolicy;
 use Illuminate\Support\Facades\Gate;
 use App\Models\Payroll;
 use App\Policies\PayrollPolicy;
+use App\Models\User;
+use App\Policies\UserPolicy;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -26,5 +28,6 @@ class AppServiceProvider extends ServiceProvider
     {
         Gate::policy(TimeEntry::class, TimeEntryPolicy::class);
         Gate::policy(Payroll::class, PayrollPolicy::class);
+        Gate::policy(User::class, UserPolicy::class);
     }
 }
