@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Filament\Resources\Tasks\Schemas;
 
 use App\Enums\TaskPriority;
@@ -20,7 +22,7 @@ class TaskInfolist
 
                 TextEntry::make('parent.title')
                     ->label('Parent Task')
-                    ->placeholder('-'),
+                    ->placeholder('—'),
 
                 TextEntry::make('title')
                     ->label('Task Title')
@@ -75,46 +77,58 @@ class TaskInfolist
                 TextEntry::make('due_date')
                     ->label('Due Date')
                     ->date('d M Y')
-                    ->placeholder('-'),
+                    ->placeholder('—'),
+
                 TextEntry::make('estimated_minutes')
                     ->label('Estimated Time')
                     ->formatStateUsing(
                         fn(?int $state): string => $state !== null
                             ? number_format($state / 60, 2) . ' hrs'
-                            : '-',
+                            : '—',
                     ),
+
                 TextEntry::make('approved_actual_hours')
                     ->label('Approved Actual Hours')
-                    ->suffix(' hrs')
-                    ->numeric(decimalPlaces: 2),
+                    ->numeric(decimalPlaces: 2)
+                    ->suffix(' hrs'),
 
-                TextEntry::make('assignees')
+                TextEntry::make('active_assignees')
                     ->label('Assignees')
                     ->state(function (Task $record): string {
-                        $assignees = $record->activeAssignees
-                            ->map(
-                                fn($employee): string => "{$employee->employee_code} - {$employee->first_name} {$employee->last_name}"
-                            )
-                            ->implode(', ');
+                        $record->loadMissing('activeAssignees');
 
-                        return $assignees !== '' ? $assignees : '-';
+                        return $record->activeAssignees
+                            ->map(
+                                fn($employee): string => sprintf(
+                                    '%s - %s',
+                                    $employee->employee_code,
+                                    trim(
+                                        $employee->first_name . ' ' .
+                                            $employee->last_name
+                                    )
+                                )
+                            )
+                            ->join(', ');
                     })
+                    ->placeholder('—')
                     ->columnSpanFull(),
 
                 TextEntry::make('created_at')
                     ->label('Created')
                     ->dateTime('d M Y, h:i A')
-                    ->placeholder('-'),
+                    ->placeholder('—'),
 
                 TextEntry::make('updated_at')
                     ->label('Last Updated')
                     ->dateTime('d M Y, h:i A')
-                    ->placeholder('-'),
+                    ->placeholder('—'),
 
                 TextEntry::make('deleted_at')
                     ->label('Deleted')
                     ->dateTime('d M Y, h:i A')
-                    ->visible(fn(Task $record): bool => $record->trashed()),
+                    ->visible(
+                        fn(Task $record): bool => $record->trashed()
+                    ),
             ]);
     }
 }
