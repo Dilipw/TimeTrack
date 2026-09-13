@@ -9,6 +9,8 @@ use App\Enums\TimeEntryStatus;
 use App\Models\Employee;
 use App\Models\Payroll;
 use App\Models\Project;
+use App\Models\ProjectMember;
+use App\Models\Task;
 use App\Models\TimeEntry;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -153,5 +155,64 @@ class DashboardService
                 )
                 ->all(),
         ];
+    }
+
+    public function getManagerStats(Employee $manager): array
+    {
+        $projectIds = Project::query()
+            ->where('project_manager_id', $manager->id)
+            ->pluck('id');
+
+        return [
+            'active_projects' => Project::query()
+                ->where('project_manager_id', $manager->id)
+                ->where('status', 'active')
+                ->count(),
+
+            'team_members' => ProjectMember::query()
+                ->whereIn('project_id', $projectIds)
+                ->whereNull('removed_at')
+                ->distinct('employee_id')
+                ->count('employee_id'),
+
+            'pending_approvals' => TimeEntry::query()
+                ->whereIn('project_id', $projectIds)
+                ->where('status', TimeEntryStatus::SUBMITTED)
+                ->count(),
+
+            'tasks_in_progress' => Task::query()
+                ->whereIn('project_id', $projectIds)
+                ->where('status', 'in_progress')
+                ->count(),
+
+            'overdue_tasks' => Task::query()
+                ->whereIn('project_id', $projectIds)
+                ->whereNotIn('status', [
+                    'completed',
+                    'cancelled',
+                ])
+                ->whereDate('due_date', '<', now()->toDateString())
+                ->count(),
+        ];
+    }
+
+    /**
+     * Get pending time approvals for projects managed by the manager.
+     */
+    public function getManagerPendingApprovalsQuery(Employee $manager): Builder
+    {
+        return TimeEntry::query()
+            ->with([
+                'employee',
+                'project',
+                'task',
+            ])
+            ->whereHas(
+                'project',
+                fn(Builder $query): Builder => $query
+                    ->where('project_manager_id', $manager->id)
+            )
+            ->where('status', TimeEntryStatus::SUBMITTED)
+            ->latest('submitted_at');
     }
 }

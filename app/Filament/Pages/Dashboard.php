@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Filament\Pages;
 
 use App\Filament\Widgets\Admin\AdminPendingApprovals;
-use App\Filament\Widgets\Admin\AdminStatsOverview;
-use Filament\Pages\Dashboard as BaseDashboard;
-use App\Filament\Widgets\Admin\AdminRecentPayrolls;
 use App\Filament\Widgets\Admin\AdminPayrollTrend;
+use App\Filament\Widgets\Admin\AdminRecentPayrolls;
+use App\Filament\Widgets\Admin\AdminStatsOverview;
+use App\Filament\Widgets\ProjectManager\ManagerStatsOverview;
+use Filament\Pages\Dashboard as BaseDashboard;
+use App\Filament\Widgets\ProjectManager\ManagerPendingApprovals;
 
 class Dashboard extends BaseDashboard
 {
@@ -26,6 +28,13 @@ class Dashboard extends BaseDashboard
                 AdminPendingApprovals::class,
                 AdminRecentPayrolls::class,
                 AdminPayrollTrend::class,
+            ];
+        }
+
+        if ($user->hasRole('project_manager')) {
+            return [
+                ManagerStatsOverview::class,
+                ManagerPendingApprovals::class,
             ];
         }
 
