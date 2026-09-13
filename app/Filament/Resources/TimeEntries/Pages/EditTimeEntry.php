@@ -19,6 +19,7 @@ use Filament\Actions\ViewAction;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Throwable;
 
@@ -34,22 +35,111 @@ class EditTimeEntry extends EditRecord
             throw new \LogicException('Expected a TimeEntry record.');
         }
 
-        $employee = Employee::query()
-            ->findOrFail((int) $data['employee_id']);
+        try {
+            Log::info('TIME ENTRY UPDATE: started', [
+                'user_id' => auth()->id(),
+                'time_entry_id' => $record->id,
+                'data' => $data,
+            ]);
 
-        $project = Project::query()
-            ->findOrFail((int) $data['project_id']);
+            $employee = Employee::query()->findOrFail(
+                (int) $data['employee_id']
+            );
 
-        $task = Task::query()
-            ->findOrFail((int) $data['task_id']);
+            $project = Project::query()->findOrFail(
+                (int) $data['project_id']
+            );
 
-        return app(TimeEntryService::class)->update(
-            timeEntry: $record,
-            employee: $employee,
-            project: $project,
-            task: $task,
-            data: $data,
-        );
+            $task = Task::query()->findOrFail(
+                (int) $data['task_id']
+            );
+
+            $updatedEntry = app(TimeEntryService::class)->update(
+                timeEntry: $record,
+                employee: $employee,
+                project: $project,
+                task: $task,
+                data: $data,
+            );
+
+            Log::info('TIME ENTRY UPDATE: completed', [
+                'time_entry_id' => $updatedEntry->id,
+                'working_minutes' => $updatedEntry->working_minutes,
+                'status' => $updatedEntry->status->value,
+            ]);
+
+            return $updatedEntry;
+
+        } catch (ValidationException $exception) {
+            $errors = $exception->errors();
+
+            Log::warning('TIME ENTRY UPDATE: validation exception', [
+                'user_id' => auth()->id(),
+                'time_entry_id' => $record->id,
+                'message' => $exception->getMessage(),
+                'errors' => $errors,
+            ]);
+
+            $fieldMapping = [
+                'employee' => 'employee_id',
+                'project' => 'project_id',
+                'task' => 'task_id',
+            ];
+
+            foreach ($errors as $field => $messages) {
+                $formField = $fieldMapping[$field] ?? $field;
+
+                foreach ($messages as $message) {
+                    $this->addError(
+                        "data.{$formField}",
+                        $message,
+                    );
+
+                    Log::info(
+                        'TIME ENTRY UPDATE: form error added',
+                        [
+                            'field' => "data.{$formField}",
+                            'message' => $message,
+                        ]
+                    );
+                }
+            }
+
+            Notification::make()
+                ->danger()
+                ->title('Unable to update time entry')
+                ->body(
+                    collect($errors)
+                        ->flatten()
+                        ->implode(' ')
+                )
+                ->persistent()
+                ->send();
+
+            $this->halt();
+        } catch (Throwable $exception) {
+            Log::error('TIME ENTRY UPDATE: unexpected exception', [
+                'user_id' => auth()->id(),
+                'time_entry_id' => $record->id,
+                'exception' => $exception::class,
+                'message' => $exception->getMessage(),
+                'file' => $exception->getFile(),
+                'line' => $exception->getLine(),
+            ]);
+
+            report($exception);
+
+            Notification::make()
+                ->danger()
+                ->title('Unable to update time entry')
+                ->body(
+                    'Something went wrong while updating the time entry. Please try again.'
+                )
+                ->persistent()
+                ->send();
+
+            $this->halt();
+        }
     }
 
     protected function getHeaderActions(): array
@@ -126,7 +216,7 @@ class EditTimeEntry extends EditRecord
                             ->body(
                                 collect($exception->errors())
                                     ->flatten()
-                                    ->implode(' '),
+                                    ->implode(' ')
                             )
                             ->danger()
                             ->send();
@@ -136,7 +226,7 @@ class EditTimeEntry extends EditRecord
                         Notification::make()
                             ->title('Unable to resubmit time entry')
                             ->body(
-                                'An unexpected error occurred while resubmitting the time entry.',
+                                'An unexpected error occurred while resubmitting the time entry.'
                             )
                             ->danger()
                             ->send();
