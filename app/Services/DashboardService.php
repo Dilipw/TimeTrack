@@ -230,4 +230,26 @@ class DashboardService
             ->where('project_manager_id', $manager->id)
             ->latest('created_at');
     }
+
+    /**
+     * Get task overview for projects managed by the given project manager.
+     */
+    public function getManagerTasksQuery(Employee $manager): Builder
+    {
+        return Task::query()
+            ->with([
+                'project',
+                'activeAssignees',
+            ])
+            ->whereHas(
+                'project',
+                fn(Builder $query): Builder => $query
+                    ->where('project_manager_id', $manager->id)
+            )
+            ->whereNotIn('status', [
+                'completed',
+                'cancelled',
+            ])
+            ->latest('due_date');
+    }
 }
