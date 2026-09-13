@@ -65,7 +65,12 @@ class UserPanelProvider extends PanelProvider
                 FilamentShieldPlugin::make()
                     ->navigationGroup('Administration')
             ])
-
+            ->navigationGroups([
+                'Project Management',
+                'Payroll',
+                'Organization',
+                'Administration',
+            ])
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
