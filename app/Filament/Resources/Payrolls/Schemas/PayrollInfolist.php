@@ -21,8 +21,8 @@ class PayrollInfolist
                 TextEntry::make('employee.first_name')
                     ->label('Employee')
                     ->formatStateUsing(
-                        fn ($state, Payroll $record): string =>
-                            "{$record->employee->first_name} {$record->employee->last_name}"
+                        fn($state, Payroll $record): string =>
+                        "{$record->employee->first_name} {$record->employee->last_name}"
                     ),
 
                 TextEntry::make('period_start')
@@ -36,70 +36,70 @@ class PayrollInfolist
                 TextEntry::make('hourly_rate')
                     ->label('Hourly Rate')
                     ->formatStateUsing(
-                        fn ($state): string =>
-                            '₹' . number_format((float) $state, 2)
+                        fn($state): string =>
+                        '₹' . number_format((float) $state, 2)
                     ),
 
                 TextEntry::make('overtime_multiplier')
                     ->label('OT Multiplier')
                     ->formatStateUsing(
-                        fn ($state): string => number_format((float) $state, 2) . '×'
+                        fn($state): string => number_format((float) $state, 2) . '×'
                     ),
 
                 TextEntry::make('regular_minutes')
                     ->label('Regular Hours')
                     ->formatStateUsing(
-                        fn (int $state): string =>
-                            sprintf('%d h %02d m', intdiv($state, 60), $state % 60)
+                        fn(int $state): string =>
+                        sprintf('%d h %02d m', intdiv($state, 60), $state % 60)
                     ),
 
                 TextEntry::make('overtime_minutes')
                     ->label('Overtime Hours')
                     ->formatStateUsing(
-                        fn (int $state): string =>
-                            sprintf('%d h %02d m', intdiv($state, 60), $state % 60)
+                        fn(int $state): string =>
+                        sprintf('%d h %02d m', intdiv($state, 60), $state % 60)
                     ),
 
                 TextEntry::make('regular_amount')
                     ->label('Regular Amount')
                     ->formatStateUsing(
-                        fn ($state): string =>
-                            '₹' . number_format((float) $state, 2)
+                        fn($state): string =>
+                        '₹' . number_format((float) $state, 2)
                     ),
 
                 TextEntry::make('overtime_amount')
                     ->label('Overtime Amount')
                     ->formatStateUsing(
-                        fn ($state): string =>
-                            '₹' . number_format((float) $state, 2)
+                        fn($state): string =>
+                        '₹' . number_format((float) $state, 2)
                     ),
 
                 TextEntry::make('adjustment_amount')
                     ->label('Adjustment')
                     ->formatStateUsing(
-                        fn ($state): string =>
-                            '₹' . number_format((float) $state, 2)
+                        fn($state): string =>
+                        '₹' . number_format((float) $state, 2)
                     ),
 
                 TextEntry::make('deduction_amount')
                     ->label('Deduction')
                     ->formatStateUsing(
-                        fn ($state): string =>
-                            '₹' . number_format((float) $state, 2)
+                        fn($state): string =>
+                        '₹' . number_format((float) $state, 2)
                     ),
 
                 TextEntry::make('gross_amount')
                     ->label('Gross Amount')
                     ->formatStateUsing(
-                        fn ($state): string =>
-                            '₹' . number_format((float) $state, 2)
+                        fn($state): string =>
+                        '₹' . number_format((float) $state, 2)
                     ),
 
                 TextEntry::make('net_amount')
                     ->label('Net Amount')
                     ->formatStateUsing(
-                        fn ($state): string =>
-                            '₹' . number_format((float) $state, 2)
+                        fn($state): string =>
+                        '₹' . number_format((float) $state, 2)
                     ),
 
                 TextEntry::make('status')
@@ -130,7 +130,7 @@ class PayrollInfolist
                     ->dateTime('d M Y, h:i A')
                     ->placeholder('-')
                     ->visible(
-                        fn (Payroll $record): bool => $record->trashed()
+                        fn(Payroll $record): bool => $record->trashed()
                     ),
 
                 RepeatableEntry::make('timeEntries')
@@ -142,41 +142,47 @@ class PayrollInfolist
 
                         TextEntry::make('timeEntry.task.title')
                             ->label('Task'),
-
                         TextEntry::make('entry_type')
                             ->label('Type')
-                            ->badge(),
+                            ->badge()
+                            ->formatStateUsing(
+                                fn($state): string => match ($state?->value ?? $state) {
+                                    'regular' => 'Regular',
+                                    'overtime' => 'Overtime',
+                                    default => '-',
+                                }
+                            ),
 
                         TextEntry::make('working_minutes')
                             ->label('Working Time')
                             ->formatStateUsing(
-                                fn (int $state): string =>
-                                    sprintf(
-                                        '%d h %02d m',
-                                        intdiv($state, 60),
-                                        $state % 60
-                                    )
+                                fn(int $state): string =>
+                                sprintf(
+                                    '%d h %02d m',
+                                    intdiv($state, 60),
+                                    $state % 60
+                                )
                             ),
 
                         TextEntry::make('hourly_rate')
                             ->label('Rate')
                             ->formatStateUsing(
-                                fn ($state): string =>
-                                    '₹' . number_format((float) $state, 2)
+                                fn($state): string =>
+                                '₹' . number_format((float) $state, 2)
                             ),
 
                         TextEntry::make('amount')
                             ->label('Amount')
                             ->formatStateUsing(
-                                fn ($state): string =>
-                                    '₹' . number_format((float) $state, 2)
+                                fn($state): string =>
+                                '₹' . number_format((float) $state, 2)
                             ),
                     ])
                     ->columns(3)
                     ->columnSpanFull()
                     ->visible(
-                        fn (Payroll $record): bool =>
-                            $record->timeEntries()->exists()
+                        fn(Payroll $record): bool =>
+                        $record->timeEntries()->exists()
                     ),
             ]);
     }
