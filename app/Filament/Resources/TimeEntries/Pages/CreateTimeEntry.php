@@ -22,79 +22,37 @@ class CreateTimeEntry extends CreateRecord
 
     protected function handleRecordCreation(array $data): TimeEntry
     {
-        Log::info('TIME ENTRY CREATE: handleRecordCreation started', [
-            'user_id' => auth()->id(),
-            'data' => $data,
-        ]);
-
         try {
-            Log::info('TIME ENTRY CREATE: resolving employee', [
-                'employee_id' => $data['employee_id'] ?? null,
-            ]);
-
             $employee = Employee::query()->findOrFail(
-                (int) $data['employee_id']
+                (int) $data['employee_id'],
             );
-
-            Log::info('TIME ENTRY CREATE: employee resolved', [
-                'employee_id' => $employee->id,
-                'employee_code' => $employee->employee_code,
-                'status' => $employee->status->value,
-            ]);
-
-            Log::info('TIME ENTRY CREATE: resolving project', [
-                'project_id' => $data['project_id'] ?? null,
-            ]);
 
             $project = Project::query()->findOrFail(
-                (int) $data['project_id']
+                (int) $data['project_id'],
             );
-
-            Log::info('TIME ENTRY CREATE: project resolved', [
-                'project_id' => $project->id,
-                'project_code' => $project->project_code,
-                'status' => $project->status->value,
-            ]);
-
-            Log::info('TIME ENTRY CREATE: resolving task', [
-                'task_id' => $data['task_id'] ?? null,
-            ]);
 
             $task = Task::query()->findOrFail(
-                (int) $data['task_id']
+                (int) $data['task_id'],
             );
 
-            Log::info('TIME ENTRY CREATE: task resolved', [
-                'task_id' => $task->id,
-                'title' => $task->title,
-                'status' => $task->status->value,
-            ]);
+            $service = app(TimeEntryService::class);
 
-            Log::info('TIME ENTRY CREATE: calling TimeEntryService::create');
-
-            $timeEntry = app(TimeEntryService::class)->create(
+            // Create the entry first.
+            $timeEntry = $service->create(
                 employee: $employee,
                 project: $project,
                 task: $task,
                 data: $data,
             );
 
-            Log::info('TIME ENTRY CREATE: TimeEntryService::create completed', [
-                'time_entry_id' => $timeEntry->id,
-                'working_minutes' => $timeEntry->working_minutes,
-                'status' => $timeEntry->status->value,
-            ]);
-
-            return $timeEntry;
-
+            // Newly created employee time entries are
+            // immediately submitted for approval.
+            return $service->submit(
+                timeEntry: $timeEntry,
+                employee: $employee,
+            );
         } catch (ValidationException $exception) {
             $errors = $exception->errors();
-
-            Log::warning('TIME ENTRY CREATE: validation exception', [
-                'user_id' => auth()->id(),
-                'message' => $exception->getMessage(),
-                'errors' => $errors,
-            ]);
 
             $fieldMapping = [
                 'employee' => 'employee_id',
@@ -106,29 +64,9 @@ class CreateTimeEntry extends CreateRecord
                 $formField = $fieldMapping[$field] ?? $field;
 
                 foreach ($messages as $message) {
-                    /*
-                     * Filament's resource form state is stored under
-                     * the "data" property.
-                     *
-                     * Therefore:
-                     *
-                     * task_id
-                     *
-                     * becomes:
-                     *
-                     * data.task_id
-                     */
                     $this->addError(
                         "data.{$formField}",
                         $message,
-                    );
-
-                    Log::info(
-                        'TIME ENTRY CREATE: form error added',
-                        [
-                            'field' => "data.{$formField}",
-                            'message' => $message,
-                        ]
                     );
                 }
             }
@@ -139,40 +77,30 @@ class CreateTimeEntry extends CreateRecord
                 ->body(
                     collect($errors)
                         ->flatten()
-                        ->implode(' ')
+                        ->implode(' '),
                 )
                 ->persistent()
                 ->send();
 
-            /*
-             * Stop Filament's create lifecycle.
-             *
-             * This keeps the user on the form instead of allowing
-             * the create action to continue.
-             */
             $this->halt();
         } catch (Throwable $exception) {
-            Log::error('TIME ENTRY CREATE: unexpected exception', [
-                'user_id' => auth()->id(),
-                'exception' => $exception::class,
-                'message' => $exception->getMessage(),
-                'file' => $exception->getFile(),
-                'line' => $exception->getLine(),
-            ]);
-
             report($exception);
 
             Notification::make()
                 ->danger()
                 ->title('Unable to create time entry')
                 ->body(
-                    'Something went wrong while creating the time entry. Please try again.'
+                    'Something went wrong while creating the time entry.',
                 )
                 ->persistent()
                 ->send();
 
             $this->halt();
         }
+
+        throw new \LogicException(
+            'Time entry creation did not return a record.',
+        );
     }
 
     protected function afterCreate(): void

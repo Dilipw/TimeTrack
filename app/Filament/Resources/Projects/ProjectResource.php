@@ -62,6 +62,40 @@ class ProjectResource extends Resource
         ];
     }
 
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+
+        $user = auth()->user();
+
+        if (! $user) {
+            return $query->whereKey(0);
+        }
+
+        if ($user->hasAnyRole(['super_admin', 'admin'])) {
+            return $query;
+        }
+
+        $employee = $user->employee;
+
+        if (! $employee) {
+            return $query->whereKey(0);
+        }
+
+        if ($user->hasRole('project_manager')) {
+            return $query->where('project_manager_id', $employee->id);
+        }
+
+        if ($user->hasRole('employee')) {
+            return $query->whereHas(
+                'activeMembers',
+                fn(Builder $q): Builder => $q->whereKey($employee->id),
+            );
+        }
+
+        return $query->whereKey(0);
+    }
+
     public static function getRecordRouteBindingEloquentQuery(): Builder
     {
         return parent::getRecordRouteBindingEloquentQuery()

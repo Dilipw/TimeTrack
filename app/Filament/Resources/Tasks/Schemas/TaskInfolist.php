@@ -76,7 +76,13 @@ class TaskInfolist
                     ->label('Due Date')
                     ->date('d M Y')
                     ->placeholder('-'),
-
+                TextEntry::make('estimated_minutes')
+                    ->label('Estimated Time')
+                    ->formatStateUsing(
+                        fn(?int $state): string => $state !== null
+                            ? number_format($state / 60, 2) . ' hrs'
+                            : '-',
+                    ),
                 TextEntry::make('approved_actual_hours')
                     ->label('Approved Actual Hours')
                     ->suffix(' hrs')

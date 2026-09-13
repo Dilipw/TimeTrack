@@ -28,12 +28,44 @@ class TaskForm
                     ->relationship(
                         name: 'project',
                         titleAttribute: 'name',
-                        modifyQueryUsing: fn ($query) => $query
-                            ->whereIn('status', [
+                        modifyQueryUsing: function ($query): void {
+                            $query->whereIn('status', [
                                 ProjectStatus::PLANNING,
                                 ProjectStatus::ACTIVE,
-                            ])
-                            ->orderBy('name'),
+                            ]);
+
+                            $user = auth()->user();
+
+                            if (! $user) {
+                                $query->whereKey(0);
+
+                                return;
+                            }
+
+                            if ($user->hasAnyRole(['super_admin', 'admin'])) {
+                                $query->orderBy('name');
+
+                                return;
+                            }
+
+                            $employee = $user->employee;
+
+                            if (! $employee) {
+                                $query->whereKey(0);
+
+                                return;
+                            }
+
+                            if ($user->hasRole('project_manager')) {
+                                $query
+                                    ->where('project_manager_id', $employee->id)
+                                    ->orderBy('name');
+
+                                return;
+                            }
+
+                            $query->whereKey(0);
+                        },
                     )
                     ->searchable()
                     ->preload()
@@ -73,7 +105,7 @@ class TaskForm
                     ->searchable()
                     ->preload()
                     ->nullable()
-                    ->disabled(fn (Get $get): bool => ! $get('project_id'))
+                    ->disabled(fn(Get $get): bool => ! $get('project_id'))
                     ->placeholder('Select parent task'),
 
                 TextInput::make('title')
@@ -139,8 +171,8 @@ class TaskForm
                         },
                     )
                     ->getOptionLabelFromRecordUsing(
-                        fn (Employee $record): string =>
-                            "{$record->employee_code} - {$record->first_name} {$record->last_name}"
+                        fn(Employee $record): string =>
+                        "{$record->employee_code} - {$record->first_name} {$record->last_name}"
                     )
                     ->searchable([
                         'employee_code',
@@ -148,7 +180,7 @@ class TaskForm
                         'last_name',
                     ])
                     ->preload()
-                    ->disabled(fn (Get $get): bool => ! $get('project_id'))
+                    ->disabled(fn(Get $get): bool => ! $get('project_id'))
                     ->placeholder('Select project members'),
             ]);
     }

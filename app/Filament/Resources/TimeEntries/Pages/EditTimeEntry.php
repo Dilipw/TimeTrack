@@ -69,7 +69,6 @@ class EditTimeEntry extends EditRecord
             ]);
 
             return $updatedEntry;
-
         } catch (ValidationException $exception) {
             $errors = $exception->errors();
 
@@ -158,8 +157,8 @@ class EditTimeEntry extends EditRecord
                 )
                 ->modalSubmitActionLabel('Confirm')
                 ->visible(
-                    fn (TimeEntry $record): bool =>
-                        $record->status === TimeEntryStatus::REJECTED
+                    fn(TimeEntry $record): bool =>
+                    $record->status === TimeEntryStatus::REJECTED
                         && auth()->user()->can('submit', $record)
                 )
                 ->action(function (TimeEntry $record): void {
@@ -197,7 +196,7 @@ class EditTimeEntry extends EditRecord
                             ->title('Time entry resubmitted')
                             ->body(
                                 "The time entry has been submitted for approval. "
-                                . "Working time: {$updatedEntry->working_minutes} minutes."
+                                    . "Working time: {$updatedEntry->working_minutes} minutes."
                             )
                             ->success()
                             ->send();
@@ -233,6 +232,91 @@ class EditTimeEntry extends EditRecord
                     }
                 }),
 
+            Action::make('submit')
+                ->label('Submit')
+                ->icon('heroicon-o-paper-airplane')
+                ->color('primary')
+                ->requiresConfirmation()
+                ->modalHeading('Submit Time Entry')
+                ->modalDescription(
+                    'Are you sure you want to submit this time entry for approval?'
+                )
+                ->modalSubmitActionLabel('Submit')
+                ->visible(
+                    fn(TimeEntry $record): bool =>
+                    $record->status === TimeEntryStatus::DRAFT
+                        && auth()->user()->can('submit', $record)
+                )
+                ->action(function (TimeEntry $record): void {
+                    try {
+                        $record = $record->fresh([
+                            'employee',
+                            'project',
+                            'task',
+                        ]);
+
+                        if (! $record) {
+                            throw ValidationException::withMessages([
+                                'time_entry' => 'Time entry could not be found.',
+                            ]);
+                        }
+
+                        if ($record->status !== TimeEntryStatus::DRAFT) {
+                            throw ValidationException::withMessages([
+                                'status' => 'Only draft time entries can be submitted.',
+                            ]);
+                        }
+
+                        if (! $record->employee) {
+                            throw ValidationException::withMessages([
+                                'employee' => 'The employee associated with this time entry could not be found.',
+                            ]);
+                        }
+
+                        $updatedEntry = app(TimeEntryService::class)->submit(
+                            $record,
+                            $record->employee,
+                        );
+
+                        Notification::make()
+                            ->title('Time entry submitted')
+                            ->body(
+                                "The time entry has been submitted for approval. "
+                                    . "Working time: {$updatedEntry->working_minutes} minutes."
+                            )
+                            ->success()
+                            ->send();
+
+                        $this->redirect(
+                            TimeEntryResource::getUrl(
+                                'view',
+                                [
+                                    'record' => $updatedEntry->getKey(),
+                                ],
+                            ),
+                        );
+                    } catch (ValidationException $exception) {
+                        Notification::make()
+                            ->title('Unable to submit time entry')
+                            ->body(
+                                collect($exception->errors())
+                                    ->flatten()
+                                    ->implode(' ')
+                            )
+                            ->danger()
+                            ->send();
+                    } catch (Throwable $exception) {
+                        report($exception);
+
+                        Notification::make()
+                            ->title('Unable to submit time entry')
+                            ->body(
+                                'An unexpected error occurred while submitting the time entry.'
+                            )
+                            ->danger()
+                            ->send();
+                    }
+                }),
             DeleteAction::make(),
 
             ForceDeleteAction::make(),

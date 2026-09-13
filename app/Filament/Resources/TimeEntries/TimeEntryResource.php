@@ -59,7 +59,43 @@ class TimeEntryResource extends Resource
             'edit' => EditTimeEntry::route('/{record}/edit'),
         ];
     }
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
 
+        $user = auth()->user();
+
+        if (! $user) {
+            return $query->whereKey(0);
+        }
+
+        // Admin can see everything.
+        if ($user->hasAnyRole(['super_admin', 'admin'])) {
+            return $query;
+        }
+
+        $employee = $user->employee;
+
+        if (! $employee) {
+            return $query->whereKey(0);
+        }
+
+        // Project Manager can see entries from projects they manage.
+        if ($user->hasRole('project_manager')) {
+            return $query->whereHas(
+                'project',
+                fn(Builder $projectQuery): Builder => $projectQuery
+                    ->where('project_manager_id', $employee->id),
+            );
+        }
+
+        // Employee can see only their own time entries.
+        if ($user->hasRole('employee')) {
+            return $query->where('employee_id', $employee->id);
+        }
+
+        return $query->whereKey(0);
+    }
     public static function getRecordRouteBindingEloquentQuery(): Builder
     {
         return parent::getRecordRouteBindingEloquentQuery()
