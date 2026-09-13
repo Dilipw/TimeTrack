@@ -84,4 +84,14 @@ class DashboardService
             ->where('status', TimeEntryStatus::SUBMITTED)
             ->latest('submitted_at');
     }
+
+    /**
+     * Get recent payrolls for admin dashboard.
+     */
+    public function getRecentPayrollsQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return Payroll::query()
+            ->with('employee')
+            ->latest('created_at');
+    }
 }
