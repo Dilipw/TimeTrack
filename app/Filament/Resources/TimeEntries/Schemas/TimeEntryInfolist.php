@@ -18,13 +18,17 @@ class TimeEntryInfolist
             ->components([
                 TextEntry::make('employee.employee_code')
                     ->label('Employee')
-                    ->formatStateUsing(function (?string $state, TimeEntry $record): string {
-                        if (! $record->employee) {
-                            return '-';
-                        }
+                    ->formatStateUsing(
+                        function (?string $state, TimeEntry $record): string {
+                            $employee = $record->employee;
 
-                        return "{$record->employee->employee_code} - {$record->employee->first_name} {$record->employee->last_name}";
-                    })
+                            if (! $employee) {
+                                return '-';
+                            }
+
+                            return "{$employee->employee_code} - {$employee->first_name} {$employee->last_name}";
+                        }
+                    )
                     ->weight('bold'),
 
                 TextEntry::make('project.name')
@@ -50,17 +54,13 @@ class TimeEntryInfolist
                 TextEntry::make('break_minutes')
                     ->label('Break')
                     ->formatStateUsing(
-                        fn (?int $state): string => $state === null
-                            ? '-'
-                            : "{$state} minutes"
+                        fn (?int $state): string => self::formatDuration($state)
                     ),
 
                 TextEntry::make('working_minutes')
                     ->label('Working Time')
                     ->formatStateUsing(
-                        fn (?int $state): string => $state === null
-                            ? '-'
-                            : "{$state} minutes"
+                        fn (?int $state): string => self::formatDuration($state)
                     )
                     ->weight('bold'),
 
@@ -185,8 +185,29 @@ class TimeEntryInfolist
                     ])
                     ->columnSpanFull()
                     ->visible(
-                        fn (TimeEntry $record): bool => $record->approvals()->exists()
+                        fn (TimeEntry $record): bool =>
+                            $record->approvals()->exists()
                     ),
             ]);
+    }
+
+    private static function formatDuration(?int $minutes): string
+    {
+        if ($minutes === null) {
+            return '-';
+        }
+
+        if ($minutes === 0) {
+            return '0m';
+        }
+
+        $hours = intdiv($minutes, 60);
+        $remainingMinutes = $minutes % 60;
+
+        return match (true) {
+            $hours > 0 && $remainingMinutes > 0 => "{$hours}h {$remainingMinutes}m",
+            $hours > 0 => "{$hours}h",
+            default => "{$remainingMinutes}m",
+        };
     }
 }

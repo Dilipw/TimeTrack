@@ -40,11 +40,13 @@ class TimeEntriesTable
                     ->label('Employee')
                     ->formatStateUsing(
                         function (?string $state, TimeEntry $record): string {
-                            if (! $record->employee) {
+                            $employee = $record->employee;
+
+                            if (! $employee) {
                                 return '-';
                             }
 
-                            return "{$record->employee->employee_code} - {$record->employee->first_name} {$record->employee->last_name}";
+                            return "{$employee->employee_code} - {$employee->first_name} {$employee->last_name}";
                         }
                     )
                     ->searchable([
@@ -95,20 +97,17 @@ class TimeEntriesTable
                 TextColumn::make('break_minutes')
                     ->label('Break')
                     ->formatStateUsing(
-                        fn (?int $state): string => $state === null
-                            ? '-'
-                            : "{$state} min"
+                        fn (?int $state): string => self::formatDuration($state)
                     )
                     ->sortable(),
 
                 TextColumn::make('working_minutes')
                     ->label('Working Time')
                     ->formatStateUsing(
-                        fn (?int $state): string => $state === null
-                            ? '-'
-                            : "{$state} min"
+                        fn (?int $state): string => self::formatDuration($state)
                     )
-                    ->sortable(),
+                    ->sortable()
+                    ->weight('bold'),
 
                 TextColumn::make('entry_type')
                     ->label('Type')
@@ -216,8 +215,10 @@ class TimeEntriesTable
                                 ->success()
                                 ->title('Time entry approved')
                                 ->body(
-                                    "The time entry has been approved. "
-                                    . "Working time: {$approvedEntry->working_minutes} minutes."
+                                    'The time entry has been approved. '
+                                    . 'Working time: '
+                                    . self::formatDuration($approvedEntry->working_minutes)
+                                    . '.'
                                 )
                                 ->send();
                         } catch (ValidationException $exception) {
@@ -276,9 +277,7 @@ class TimeEntriesTable
                         array $data
                     ): void {
                         try {
-                            $rejectedEntry = app(
-                                TimeEntryApprovalService::class
-                            )->reject(
+                            app(TimeEntryApprovalService::class)->reject(
                                 timeEntry: $record,
                                 approver: auth()->user(),
                                 rejectionReason: $data['rejection_reason'],
@@ -324,5 +323,25 @@ class TimeEntriesTable
                 ]),
             ])
             ->defaultSort('work_date', 'desc');
+    }
+
+    private static function formatDuration(?int $minutes): string
+    {
+        if ($minutes === null) {
+            return '-';
+        }
+
+        if ($minutes === 0) {
+            return '0m';
+        }
+
+        $hours = intdiv($minutes, 60);
+        $remainingMinutes = $minutes % 60;
+
+        return match (true) {
+            $hours > 0 && $remainingMinutes > 0 => "{$hours}h {$remainingMinutes}m",
+            $hours > 0 => "{$hours}h",
+            default => "{$remainingMinutes}m",
+        };
     }
 }
