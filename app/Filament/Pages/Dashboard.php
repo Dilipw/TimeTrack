@@ -11,6 +11,7 @@ use App\Filament\Widgets\Admin\AdminStatsOverview;
 use App\Filament\Widgets\ProjectManager\ManagerStatsOverview;
 use Filament\Pages\Dashboard as BaseDashboard;
 use App\Filament\Widgets\ProjectManager\ManagerPendingApprovals;
+use App\Filament\Widgets\ProjectManager\ManagerProjects;
 
 class Dashboard extends BaseDashboard
 {
@@ -35,6 +36,7 @@ class Dashboard extends BaseDashboard
             return [
                 ManagerStatsOverview::class,
                 ManagerPendingApprovals::class,
+                ManagerProjects::class,
             ];
         }
 

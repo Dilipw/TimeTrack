@@ -215,4 +215,19 @@ class DashboardService
             ->where('status', TimeEntryStatus::SUBMITTED)
             ->latest('submitted_at');
     }
+
+    /**
+     * Get projects managed by the given project manager.
+     */
+    public function getManagerProjectsQuery(Employee $manager): Builder
+    {
+        return Project::query()
+            ->withCount([
+                'members as active_members_count' => fn(Builder $query): Builder =>
+                $query->whereNull('removed_at'),
+                'tasks',
+            ])
+            ->where('project_manager_id', $manager->id)
+            ->latest('created_at');
+    }
 }
