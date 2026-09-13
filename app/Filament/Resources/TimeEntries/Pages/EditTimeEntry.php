@@ -1,9 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Filament\Resources\TimeEntries\Pages;
 
 use App\Enums\TimeEntryStatus;
 use App\Filament\Resources\TimeEntries\TimeEntryResource;
+use App\Models\Employee;
+use App\Models\Project;
+use App\Models\Task;
 use App\Models\TimeEntry;
 use App\Services\TimeEntryService;
 use Filament\Actions\Action;
@@ -13,12 +18,39 @@ use Filament\Actions\RestoreAction;
 use Filament\Actions\ViewAction;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\ValidationException;
 use Throwable;
 
 class EditTimeEntry extends EditRecord
 {
     protected static string $resource = TimeEntryResource::class;
+
+    protected function handleRecordUpdate(
+        Model $record,
+        array $data,
+    ): Model {
+        if (! $record instanceof TimeEntry) {
+            throw new \LogicException('Expected a TimeEntry record.');
+        }
+
+        $employee = Employee::query()
+            ->findOrFail((int) $data['employee_id']);
+
+        $project = Project::query()
+            ->findOrFail((int) $data['project_id']);
+
+        $task = Task::query()
+            ->findOrFail((int) $data['task_id']);
+
+        return app(TimeEntryService::class)->update(
+            timeEntry: $record,
+            employee: $employee,
+            project: $project,
+            task: $task,
+            data: $data,
+        );
+    }
 
     protected function getHeaderActions(): array
     {
@@ -42,10 +74,6 @@ class EditTimeEntry extends EditRecord
                 )
                 ->action(function (TimeEntry $record): void {
                     try {
-                        /*
-                         * Reload the record before submitting so we work
-                         * with the latest database state.
-                         */
                         $record = $record->fresh([
                             'employee',
                             'project',
@@ -58,9 +86,7 @@ class EditTimeEntry extends EditRecord
                             ]);
                         }
 
-                        if (
-                            $record->status !== TimeEntryStatus::REJECTED
-                        ) {
+                        if ($record->status !== TimeEntryStatus::REJECTED) {
                             throw ValidationException::withMessages([
                                 'status' => 'Only rejected time entries can be resubmitted.',
                             ]);
@@ -72,13 +98,9 @@ class EditTimeEntry extends EditRecord
                             ]);
                         }
 
-                        /*
-                         * The service intentionally receives the TimeEntry
-                         * first and the owning Employee second.
-                         */
                         $updatedEntry = app(TimeEntryService::class)->submit(
                             $record,
-                            $record->employee
+                            $record->employee,
                         );
 
                         Notification::make()
@@ -95,8 +117,8 @@ class EditTimeEntry extends EditRecord
                                 'view',
                                 [
                                     'record' => $updatedEntry->getKey(),
-                                ]
-                            )
+                                ],
+                            ),
                         );
                     } catch (ValidationException $exception) {
                         Notification::make()
@@ -104,7 +126,7 @@ class EditTimeEntry extends EditRecord
                             ->body(
                                 collect($exception->errors())
                                     ->flatten()
-                                    ->implode(' ')
+                                    ->implode(' '),
                             )
                             ->danger()
                             ->send();
@@ -114,7 +136,7 @@ class EditTimeEntry extends EditRecord
                         Notification::make()
                             ->title('Unable to resubmit time entry')
                             ->body(
-                                'An unexpected error occurred while resubmitting the time entry.'
+                                'An unexpected error occurred while resubmitting the time entry.',
                             )
                             ->danger()
                             ->send();
