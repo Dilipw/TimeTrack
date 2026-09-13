@@ -69,16 +69,16 @@ class TimeEntryForm
                     },
                 )
                 ->getOptionLabelFromRecordUsing(
-                    fn (Employee $record): string => "{$record->employee_code} - {$record->first_name} {$record->last_name}",
+                    fn(Employee $record): string => "{$record->employee_code} - {$record->first_name} {$record->last_name}",
                 )
                 ->default(
-                    fn (): ?int => auth()->user()?->employee?->id,
+                    fn(): ?int => auth()->user()?->employee?->id,
                 )
                 ->searchable()
                 ->preload()
                 ->required()
                 ->disabled(
-                    fn (): bool => auth()->user()?->hasRole('employee') ?? false,
+                    fn(): bool => auth()->user()?->hasRole('employee') ?? false,
                 )
                 // Important: disabled employee field must still be submitted.
                 ->dehydrated(true),
@@ -121,7 +121,7 @@ class TimeEntryForm
                             $query
                                 ->whereHas(
                                     'activeMembers',
-                                    fn ($memberQuery) => $memberQuery
+                                    fn($memberQuery) => $memberQuery
                                         ->whereKey($employee->id),
                                 )
                                 ->orderBy('name');
@@ -145,7 +145,7 @@ class TimeEntryForm
                 ->preload()
                 ->live()
                 ->afterStateUpdated(
-                    fn ($set): mixed => $set('task_id', null),
+                    fn($set): mixed => $set('task_id', null),
                 )
                 ->required(),
 
@@ -185,7 +185,7 @@ class TimeEntryForm
                             if ($employeeId) {
                                 $query->whereHas(
                                     'activeAssignees',
-                                    fn ($assigneeQuery) => $assigneeQuery
+                                    fn($assigneeQuery) => $assigneeQuery
                                         ->whereKey($employeeId),
                                 );
                             } else {
@@ -200,7 +200,7 @@ class TimeEntryForm
                             if ($employeeId) {
                                 $query->whereHas(
                                     'project',
-                                    fn ($projectQuery) => $projectQuery
+                                    fn($projectQuery) => $projectQuery
                                         ->where('project_manager_id', $employeeId),
                                 );
                             } else {
@@ -215,7 +215,7 @@ class TimeEntryForm
                 ->preload()
                 ->required()
                 ->disabled(
-                    fn (Get $get): bool => ! $get('project_id'),
+                    fn(Get $get): bool => ! $get('project_id'),
                 ),
 
             DatePicker::make('work_date')
@@ -266,8 +266,8 @@ class TimeEntryForm
                 ->dehydrated(false)
                 ->rows(3)
                 ->visible(
-                    fn ($record): bool =>
-                        $record?->status?->value === 'rejected',
+                    fn($record): bool =>
+                    $record?->status?->value === 'rejected',
                 )
                 ->columnSpanFull()
                 ->helperText(

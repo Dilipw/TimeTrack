@@ -9,6 +9,9 @@ use App\Models\User;
 use App\Models\TimesheetApproval;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use App\Enums\PayrollStatus;
+use App\Models\Payroll;
+use Carbon\Carbon;
 
 class TimeEntryApprovalService
 {
@@ -42,6 +45,8 @@ class TimeEntryApprovalService
                 'rejection_reason' => null,
                 'acted_at' => now(),
             ]);
+
+            $this->syncPayroll($timeEntry);
 
             return $timeEntry->refresh();
         });
@@ -126,5 +131,45 @@ class TimeEntryApprovalService
                 'rejection_reason' => 'The rejection reason cannot exceed 2000 characters.',
             ]);
         }
+    }
+
+    private function syncPayroll(TimeEntry $timeEntry): void
+    {
+        $workDate = Carbon::parse($timeEntry->work_date);
+
+        $periodStart = $workDate->copy()->startOfMonth();
+        $periodEnd = $workDate->copy()->endOfMonth();
+
+        // If a finalized payroll already exists for this period,
+        // never modify it automatically.
+        $finalizedPayrollExists = Payroll::query()
+            ->where('employee_id', $timeEntry->employee_id)
+            ->where('status', PayrollStatus::FINALIZED)
+            ->whereDate('period_start', '<=', $periodEnd->toDateString())
+            ->whereDate('period_end', '>=', $periodStart->toDateString())
+            ->exists();
+
+        if ($finalizedPayrollExists) {
+            return;
+        }
+
+        $payroll = Payroll::query()
+            ->where('employee_id', $timeEntry->employee_id)
+            ->where('status', PayrollStatus::DRAFT)
+            ->whereDate('period_start', $periodStart->toDateString())
+            ->whereDate('period_end', $periodEnd->toDateString())
+            ->first();
+
+        $payrollService = app(PayrollService::class);
+
+        if (! $payroll) {
+            $payroll = $payrollService->create(
+                employee: $timeEntry->employee,
+                periodStart: $periodStart,
+                periodEnd: $periodEnd,
+            );
+        }
+
+        $payrollService->calculate($payroll);
     }
 }
