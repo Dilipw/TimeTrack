@@ -1,20 +1,28 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Filament\Resources\TimeEntries\Tables;
 
 use App\Enums\TimeEntryStatus;
 use App\Enums\TimeEntryType;
+use App\Models\TimeEntry;
+use App\Services\TimeEntryApprovalService;
+use Carbon\Carbon;
+use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ForceDeleteBulkAction;
 use Filament\Actions\RestoreBulkAction;
 use Filament\Actions\ViewAction;
+use Filament\Forms\Components\Textarea;
+use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
-use Carbon\Carbon;
-
+use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class TimeEntriesTable
 {
@@ -30,13 +38,15 @@ class TimeEntriesTable
 
                 TextColumn::make('employee.employee_code')
                     ->label('Employee')
-                    ->formatStateUsing(function (?string $state, $record): string {
-                        if (! $record->employee) {
-                            return '-';
-                        }
+                    ->formatStateUsing(
+                        function (?string $state, TimeEntry $record): string {
+                            if (! $record->employee) {
+                                return '-';
+                            }
 
-                        return "{$record->employee->employee_code} - {$record->employee->first_name} {$record->employee->last_name}";
-                    })
+                            return "{$record->employee->employee_code} - {$record->employee->first_name} {$record->employee->last_name}";
+                        }
+                    )
                     ->searchable([
                         'employee_code',
                         'first_name',
@@ -67,23 +77,25 @@ class TimeEntriesTable
 
                 TextColumn::make('work_time')
                     ->label('Time')
-                    ->state(function ($record): string {
-                        if (! $record->start_time || ! $record->end_time) {
-                            return '-';
-                        }
+                    ->state(
+                        function (TimeEntry $record): string {
+                            if (! $record->start_time || ! $record->end_time) {
+                                return '-';
+                            }
 
-                        return sprintf(
-                            '%s - %s',
-                            Carbon::parse($record->start_time)->format('h:i A'),
-                            Carbon::parse($record->end_time)->format('h:i A'),
-                        );
-                    })
+                            return sprintf(
+                                '%s - %s',
+                                Carbon::parse($record->start_time)->format('h:i A'),
+                                Carbon::parse($record->end_time)->format('h:i A'),
+                            );
+                        }
+                    )
                     ->sortable(false),
 
                 TextColumn::make('break_minutes')
                     ->label('Break')
                     ->formatStateUsing(
-                        fn(?int $state): string => $state === null
+                        fn (?int $state): string => $state === null
                             ? '-'
                             : "{$state} min"
                     )
@@ -92,7 +104,7 @@ class TimeEntriesTable
                 TextColumn::make('working_minutes')
                     ->label('Working Time')
                     ->formatStateUsing(
-                        fn(?int $state): string => $state === null
+                        fn (?int $state): string => $state === null
                             ? '-'
                             : "{$state} min"
                     )
@@ -102,13 +114,13 @@ class TimeEntriesTable
                     ->label('Type')
                     ->badge()
                     ->formatStateUsing(
-                        fn(TimeEntryType $state): string => match ($state) {
+                        fn (TimeEntryType $state): string => match ($state) {
                             TimeEntryType::REGULAR => 'Regular',
                             TimeEntryType::OVERTIME => 'Overtime',
                         }
                     )
                     ->color(
-                        fn(TimeEntryType $state): string => match ($state) {
+                        fn (TimeEntryType $state): string => match ($state) {
                             TimeEntryType::REGULAR => 'gray',
                             TimeEntryType::OVERTIME => 'warning',
                         }
@@ -119,7 +131,7 @@ class TimeEntriesTable
                     ->label('Status')
                     ->badge()
                     ->formatStateUsing(
-                        fn(TimeEntryStatus $state): string => match ($state) {
+                        fn (TimeEntryStatus $state): string => match ($state) {
                             TimeEntryStatus::DRAFT => 'Draft',
                             TimeEntryStatus::SUBMITTED => 'Submitted',
                             TimeEntryStatus::APPROVED => 'Approved',
@@ -128,7 +140,7 @@ class TimeEntriesTable
                         }
                     )
                     ->color(
-                        fn(TimeEntryStatus $state): string => match ($state) {
+                        fn (TimeEntryStatus $state): string => match ($state) {
                             TimeEntryStatus::DRAFT => 'gray',
                             TimeEntryStatus::SUBMITTED => 'info',
                             TimeEntryStatus::APPROVED => 'success',
@@ -173,7 +185,136 @@ class TimeEntriesTable
             ])
             ->recordActions([
                 ViewAction::make(),
+
                 EditAction::make(),
+
+                Action::make('approve')
+                    ->label('Approve')
+                    ->icon('heroicon-o-check-circle')
+                    ->color('success')
+                    ->requiresConfirmation()
+                    ->modalHeading('Approve Time Entry')
+                    ->modalDescription(
+                        'Are you sure you want to approve this time entry? Approved hours will become eligible for payroll.'
+                    )
+                    ->modalSubmitActionLabel('Approve')
+                    ->visible(
+                        fn (TimeEntry $record): bool =>
+                            $record->status === TimeEntryStatus::SUBMITTED
+                            && auth()->user()->can('approve', $record)
+                    )
+                    ->action(function (TimeEntry $record): void {
+                        try {
+                            $approvedEntry = app(
+                                TimeEntryApprovalService::class
+                            )->approve(
+                                timeEntry: $record,
+                                approver: auth()->user(),
+                            );
+
+                            Notification::make()
+                                ->success()
+                                ->title('Time entry approved')
+                                ->body(
+                                    "The time entry has been approved. "
+                                    . "Working time: {$approvedEntry->working_minutes} minutes."
+                                )
+                                ->send();
+                        } catch (ValidationException $exception) {
+                            Notification::make()
+                                ->danger()
+                                ->title('Unable to approve time entry')
+                                ->body(
+                                    collect($exception->errors())
+                                        ->flatten()
+                                        ->implode(' ')
+                                )
+                                ->persistent()
+                                ->send();
+                        } catch (Throwable $exception) {
+                            report($exception);
+
+                            Notification::make()
+                                ->danger()
+                                ->title('Unable to approve time entry')
+                                ->body(
+                                    'An unexpected error occurred while approving the time entry.'
+                                )
+                                ->persistent()
+                                ->send();
+                        }
+                    }),
+
+                Action::make('reject')
+                    ->label('Reject')
+                    ->icon('heroicon-o-x-circle')
+                    ->color('danger')
+                    ->requiresConfirmation()
+                    ->modalHeading('Reject Time Entry')
+                    ->modalDescription(
+                        'Provide a reason for rejecting this time entry.'
+                    )
+                    ->modalSubmitActionLabel('Reject')
+                    ->form([
+                        Textarea::make('rejection_reason')
+                            ->label('Rejection Reason')
+                            ->required()
+                            ->minLength(3)
+                            ->maxLength(2000)
+                            ->rows(4)
+                            ->placeholder(
+                                'Explain why this time entry is being rejected...'
+                            ),
+                    ])
+                    ->visible(
+                        fn (TimeEntry $record): bool =>
+                            $record->status === TimeEntryStatus::SUBMITTED
+                            && auth()->user()->can('reject', $record)
+                    )
+                    ->action(function (
+                        TimeEntry $record,
+                        array $data
+                    ): void {
+                        try {
+                            $rejectedEntry = app(
+                                TimeEntryApprovalService::class
+                            )->reject(
+                                timeEntry: $record,
+                                approver: auth()->user(),
+                                rejectionReason: $data['rejection_reason'],
+                            );
+
+                            Notification::make()
+                                ->success()
+                                ->title('Time entry rejected')
+                                ->body(
+                                    'The time entry has been rejected and can be corrected and resubmitted.'
+                                )
+                                ->send();
+                        } catch (ValidationException $exception) {
+                            Notification::make()
+                                ->danger()
+                                ->title('Unable to reject time entry')
+                                ->body(
+                                    collect($exception->errors())
+                                        ->flatten()
+                                        ->implode(' ')
+                                )
+                                ->persistent()
+                                ->send();
+                        } catch (Throwable $exception) {
+                            report($exception);
+
+                            Notification::make()
+                                ->danger()
+                                ->title('Unable to reject time entry')
+                                ->body(
+                                    'An unexpected error occurred while rejecting the time entry.'
+                                )
+                                ->persistent()
+                                ->send();
+                        }
+                    }),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
