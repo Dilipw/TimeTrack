@@ -94,4 +94,64 @@ class DashboardService
             ->with('employee')
             ->latest('created_at');
     }
+
+    /**
+     * Get finalized payroll totals grouped by month.
+     *
+     * @return array{
+     *     labels: array<int, string>,
+     *     gross: array<int, float>,
+     *     net: array<int, float>,
+     * }
+     */
+    public function getAdminPayrollTrend(): array
+    {
+        $start = now()->startOfYear();
+        $end = now()->endOfYear();
+
+        $payrolls = Payroll::query()
+            ->where('status', PayrollStatus::FINALIZED)
+            ->whereDate('period_start', '>=', $start->toDateString())
+            ->whereDate('period_end', '<=', $end->toDateString())
+            ->get([
+                'period_start',
+                'gross_amount',
+                'net_amount',
+            ]);
+
+        $months = collect(range(1, 12));
+
+        return [
+            'labels' => $months
+                ->map(
+                    fn(int $month): string =>
+                    now()->setMonth($month)->format('M')
+                )
+                ->all(),
+
+            'gross' => $months
+                ->map(
+                    fn(int $month): float =>
+                    (float) $payrolls
+                        ->filter(
+                            fn($payroll): bool =>
+                            $payroll->period_start->month === $month
+                        )
+                        ->sum('gross_amount')
+                )
+                ->all(),
+
+            'net' => $months
+                ->map(
+                    fn(int $month): float =>
+                    (float) $payrolls
+                        ->filter(
+                            fn($payroll): bool =>
+                            $payroll->period_start->month === $month
+                        )
+                        ->sum('net_amount')
+                )
+                ->all(),
+        ];
+    }
 }

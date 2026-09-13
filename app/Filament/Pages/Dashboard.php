@@ -8,6 +8,7 @@ use App\Filament\Widgets\Admin\AdminPendingApprovals;
 use App\Filament\Widgets\Admin\AdminStatsOverview;
 use Filament\Pages\Dashboard as BaseDashboard;
 use App\Filament\Widgets\Admin\AdminRecentPayrolls;
+use App\Filament\Widgets\Admin\AdminPayrollTrend;
 
 class Dashboard extends BaseDashboard
 {
@@ -24,6 +25,7 @@ class Dashboard extends BaseDashboard
                 AdminStatsOverview::class,
                 AdminPendingApprovals::class,
                 AdminRecentPayrolls::class,
+                AdminPayrollTrend::class,
             ];
         }
 
