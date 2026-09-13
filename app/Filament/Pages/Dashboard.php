@@ -13,6 +13,10 @@ use Filament\Pages\Dashboard as BaseDashboard;
 use App\Filament\Widgets\ProjectManager\ManagerPendingApprovals;
 use App\Filament\Widgets\ProjectManager\ManagerProjects;
 use App\Filament\Widgets\ProjectManager\ManagerTaskOverview;
+use App\Filament\Widgets\Employee\EmployeeStatsOverview;
+use App\Filament\Widgets\Employee\EmployeeTasks;
+use App\Filament\Widgets\Employee\EmployeeRecentTimeEntries;
+use App\Filament\Widgets\Employee\EmployeeQuickActions;
 
 class Dashboard extends BaseDashboard
 {
@@ -41,7 +45,14 @@ class Dashboard extends BaseDashboard
                 ManagerTaskOverview::class,
             ];
         }
-
+        if ($user->hasRole('employee')) {
+            return [
+                EmployeeQuickActions::class,
+                EmployeeStatsOverview::class,
+                EmployeeTasks::class,
+                EmployeeRecentTimeEntries::class,
+            ];
+        }
         return [];
     }
 

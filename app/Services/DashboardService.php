@@ -252,4 +252,115 @@ class DashboardService
             ])
             ->latest('due_date');
     }
+
+    /**
+     * Get personal statistics for the employee dashboard.
+     *
+     * @return array{
+     *     active_projects: int,
+     *     assigned_tasks: int,
+     *     today_hours: float,
+     *     current_month_approved_hours: float,
+     *     pending_entries: int,
+     *     rejected_entries: int
+     * }
+     */
+    public function getEmployeeStats(Employee $employee): array
+    {
+        $today = now()->toDateString();
+        $monthStart = now()->startOfMonth()->toDateString();
+        $monthEnd = now()->endOfMonth()->toDateString();
+
+        return [
+            'active_projects' => ProjectMember::query()
+                ->where('employee_id', $employee->id)
+                ->whereNull('removed_at')
+                ->whereHas(
+                    'project',
+                    fn(Builder $query): Builder => $query
+                        ->where('status', 'active')
+                )
+                ->count(),
+
+            'assigned_tasks' => Task::query()
+                ->whereHas(
+                    'activeAssignees',
+                    fn(Builder $query): Builder => $query
+                        ->where('employees.id', $employee->id)
+                )
+                ->whereNotIn('status', [
+                    'completed',
+                    'cancelled',
+                ])
+                ->count(),
+
+            'today_hours' => round(
+                TimeEntry::query()
+                    ->where('employee_id', $employee->id)
+                    ->whereDate('work_date', $today)
+                    ->where('status', TimeEntryStatus::APPROVED)
+                    ->sum('working_minutes') / 60,
+                2
+            ),
+
+            'current_month_approved_hours' => round(
+                TimeEntry::query()
+                    ->where('employee_id', $employee->id)
+                    ->whereBetween('work_date', [$monthStart, $monthEnd])
+                    ->where('status', TimeEntryStatus::APPROVED)
+                    ->sum('working_minutes') / 60,
+                2
+            ),
+
+            'pending_entries' => TimeEntry::query()
+                ->where('employee_id', $employee->id)
+                ->where('status', TimeEntryStatus::SUBMITTED)
+                ->count(),
+
+            'rejected_entries' => TimeEntry::query()
+                ->where('employee_id', $employee->id)
+                ->where('status', TimeEntryStatus::REJECTED)
+                ->count(),
+        ];
+    }
+
+    /**
+     * Get active tasks assigned to the given employee.
+     */
+    public function getEmployeeTasksQuery(Employee $employee): Builder
+    {
+        return Task::query()
+            ->with([
+                'project',
+                'activeAssignees',
+            ])
+            ->whereHas(
+                'activeAssignees',
+                fn(Builder $query): Builder => $query
+                    ->where('employees.id', $employee->id)
+            )
+            ->whereNotIn('status', [
+                'completed',
+                'cancelled',
+            ])
+            ->orderByRaw(
+                'CASE WHEN due_date IS NULL THEN 1 ELSE 0 END'
+            )
+            ->orderBy('due_date');
+    }
+
+    /**
+     * Get recent time entries for the given employee.
+     */
+    public function getEmployeeTimeEntriesQuery(Employee $employee): Builder
+    {
+        return TimeEntry::query()
+            ->with([
+                'project',
+                'task',
+            ])
+            ->where('employee_id', $employee->id)
+            ->latest('work_date')
+            ->latest('created_at');
+    }
 }
