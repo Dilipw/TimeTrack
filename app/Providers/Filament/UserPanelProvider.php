@@ -62,7 +62,8 @@ class UserPanelProvider extends PanelProvider
             ->widgets([])
 
             ->plugins([
-                FilamentShieldPlugin::make(),
+                FilamentShieldPlugin::make()
+                    ->navigationGroup('Administration')
             ])
 
             ->middleware([
