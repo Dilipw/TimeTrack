@@ -27,9 +27,9 @@ class UserPanelProvider extends PanelProvider
             ->id('user')
             ->path('user')
             ->brandName('TimeTrack')
-            ->brandLogo(asset('images/timetrack-logo.svg'))
+            // ->brandLogo(asset('images/timetrack-logo.svg'))
             ->brandLogoHeight('2rem')
-            ->favicon(asset('images/timetrack-favicon.svg'))
+            // ->favicon(asset('images/timetrack-favicon.svg'))
 
             ->login()
 
