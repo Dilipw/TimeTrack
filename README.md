@@ -30,10 +30,6 @@ The primary objective is to ensure that payroll is generated from **approved tim
 | Transactions        | Laravel `DB::transaction()`                 |
 | Testing             | Pest                                        |
 | Version Control     | Git / GitHub                                |
-| API                 | Optional / not part of the primary scope    |
-| React               | Not used                                    |
-| AI                  | Not used                                    |
-| Redis               | Not required                                |
 
 ---
 
