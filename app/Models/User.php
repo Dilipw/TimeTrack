@@ -38,10 +38,11 @@ class User extends Authenticatable implements FilamentUser
     {
         return $this->hasOne(Employee::class);
     }
-     public function canAccessPanel(Panel $panel): bool
+    public function canAccessPanel(Panel $panel): bool
     {
         return $panel->getId() === 'user'
             && $this->hasAnyRole([
+                'super_admin',
                 'admin',
                 'project_manager',
                 'employee',
