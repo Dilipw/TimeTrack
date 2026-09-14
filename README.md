@@ -1259,8 +1259,8 @@ XML
 Clone the repository:
 
 ```bash
-git clone <https://github.com/Dilipw/TimeTrack>
-cd <app>
+git clone https://github.com/Dilipw/TimeTrack
+cd app
 ```
 
 Install PHP dependencies:
@@ -2021,8 +2021,8 @@ because it provides the ready-to-use database structure and demonstration data w
 For an evaluator who wants to run the project quickly:
 
 ```bash
-git clone <https://github.com/Dilipw/TimeTrack>
-cd <app>
+git clone https://github.com/Dilipw/TimeTrack
+cd app
 
 composer install
 npm install
